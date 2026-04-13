@@ -6,7 +6,7 @@ function resolve(relativePath) {
 export const IMPORTS = {
     osiRuntime: isDev
         ? resolve("../../../osi-runtime/dist/index.js")
-        : "https://cdn.jsdelivr.net/gh/truespeech/osi-runtime@main/dist/index.js",
+        : "https://cdn.jsdelivr.net/gh/truespeech/osi-runtime@v0.1.0/dist/index.js",
     schema: isDev
         ? resolve("../data/schema.sql")
         : "https://cdn.jsdelivr.net/gh/truespeech/truespeech.github.io@main/osi-runtime/data/schema.sql",
