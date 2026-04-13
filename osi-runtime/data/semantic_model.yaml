@@ -1,0 +1,81 @@
+semantic_model:
+  - name: retail_sales
+    description: Sales analytics model for retail operations
+    ai_context:
+      instructions: "Use this model for sales analysis and customer insights"
+    datasets:
+      - name: orders
+        source: orders
+        primary_key: [order_id]
+        fields:
+          - name: order_id
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "order_id"
+          - name: order_date
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "order_date"
+            dimension:
+              is_time: true
+            description: Date the order was placed
+            ai_context:
+              synonyms:
+                - "date"
+                - "sale date"
+          - name: region
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "region"
+            dimension:
+              is_time: false
+            description: Sales region
+            ai_context:
+              synonyms:
+                - "sales region"
+                - "territory"
+          - name: product_tier
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "product_tier"
+            dimension:
+              is_time: false
+            description: Product tier classification
+            ai_context:
+              synonyms:
+                - "tier"
+                - "product category"
+              instructions: "Values are 'enterprise' and 'consumer'"
+          - name: amount
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "amount"
+            description: Order amount in USD
+    metrics:
+      - name: total_sales
+        description: Total gross sales revenue
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: "SUM(orders.amount)"
+        ai_context:
+          synonyms:
+            - "sales"
+            - "revenue"
+            - "total revenue"
+      - name: average_order_value
+        description: Average value per order
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: "AVG(orders.amount)"
+        ai_context:
+          synonyms:
+            - "AOV"
+            - "average order size"
+          instructions: "Enterprise and consumer tiers have fundamentally different price points; always scope to a specific product_tier unless explicitly asked for a blended average."

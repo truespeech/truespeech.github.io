@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OSI Runtime — Interactive Demo</title>
+  <link rel="stylesheet" href="osi-runtime/style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="intro">
+      <h1>OSI Runtime</h1>
+      <p>An open-source runtime for <a href="https://open-semantic-interchange.org/">OSI</a> semantic models. It reads an OSI YAML definition and generates SQL from semantic queries — you ask for a metric by name, and it produces the correct query.</p>
+      <p>This demo runs entirely in your browser. The database is DuckDB-WASM loaded with sample sales data. Try clicking an example query above the top panel, or type your own. You can type <code>help</code> in either panel for available commands.</p>
+    </div>
+    <div id="demo"></div>
+  </div>
+  <script type="module" src="osi-runtime/dist/main.js"></script>
+</body>
+</html>
