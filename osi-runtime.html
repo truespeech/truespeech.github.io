@@ -11,10 +11,108 @@
     <div class="intro">
       <h1>OSI Runtime</h1>
       <p>An open-source runtime for <a href="https://open-semantic-interchange.org/">OSI</a> semantic models. It reads an OSI YAML definition and generates SQL from semantic queries — you ask for a metric by name, and it produces the correct query.</p>
-      <p>This demo runs entirely in your browser. The database is DuckDB-WASM loaded with sample sales data. Try clicking an example query above the top panel, or type your own. You can type <code>help</code> in either panel for available commands.</p>
+      <p>This demo runs entirely in your browser. The database is DuckDB-WASM loaded with sample sales data. Try clicking an example query above the top panel, or type your own. You can type <code>help</code> in either panel for available commands. See the <a href="#semantic-model">semantic model</a> and <a href="#database-schema">database schema</a> below.</p>
       <p><a href="https://github.com/truespeech/osi-runtime">View source on GitHub</a> · Part of the <a href="/">truespeech</a> project</p>
     </div>
     <div id="demo"></div>
+
+    <div class="reference">
+      <h2 id="semantic-model">Semantic Model</h2>
+      <p>The OSI YAML definition that the runtime uses. It defines two metrics (<code>total_sales</code> and <code>average_order_value</code>) and three dimensions (<code>order_date</code>, <code>region</code>, <code>product_tier</code>) over a single <code>orders</code> dataset.</p>
+      <pre class="reference-code">semantic_model:
+  - name: retail_sales
+    description: Sales analytics model for retail operations
+    ai_context:
+      instructions: "Use this model for sales analysis and customer insights"
+    datasets:
+      - name: orders
+        source: orders
+        primary_key: [order_id]
+        fields:
+          - name: order_id
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "order_id"
+          - name: order_date
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "order_date"
+            dimension:
+              is_time: true
+            description: Date the order was placed
+            ai_context:
+              synonyms:
+                - "date"
+                - "sale date"
+          - name: region
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "region"
+            dimension:
+              is_time: false
+            description: Sales region
+            ai_context:
+              synonyms:
+                - "sales region"
+                - "territory"
+          - name: product_tier
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "product_tier"
+            dimension:
+              is_time: false
+            description: Product tier classification
+            ai_context:
+              synonyms:
+                - "tier"
+                - "product category"
+              instructions: "Values are 'enterprise' and 'consumer'"
+          - name: amount
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "amount"
+            description: Order amount in USD
+    metrics:
+      - name: total_sales
+        description: Total gross sales revenue
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: "SUM(orders.amount)"
+        ai_context:
+          synonyms:
+            - "sales"
+            - "revenue"
+            - "total revenue"
+      - name: average_order_value
+        description: Average value per order
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: "AVG(orders.amount)"
+        ai_context:
+          synonyms:
+            - "AOV"
+            - "average order size"
+          instructions: "Enterprise and consumer tiers have fundamentally
+            different price points; always scope to a specific product_tier
+            unless explicitly asked for a blended average."</pre>
+
+      <h2 id="database-schema">Database Schema</h2>
+      <p>The underlying DuckDB table loaded with ~200 rows of sample sales data spanning January 2025 through April 2026.</p>
+      <pre class="reference-code">CREATE TABLE orders (
+    order_id      INTEGER PRIMARY KEY,
+    order_date    DATE NOT NULL,
+    region        VARCHAR(50) NOT NULL,
+    product_tier  VARCHAR(20) NOT NULL,
+    amount        DECIMAL(10, 2) NOT NULL
+);</pre>
+    </div>
   </div>
   <script type="module" src="osi-runtime/dist/main.js"></script>
 </body>
