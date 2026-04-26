@@ -20,6 +20,7 @@ semantic_model:
                   expression: "order_date"
             dimension:
               is_time: true
+              is_primary: true
             description: Date the order was placed
             ai_context:
               synonyms:

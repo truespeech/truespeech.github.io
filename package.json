@@ -8,7 +8,9 @@
     "tsx": "^4.19.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:osi && npm run build:truespeech",
+    "build:osi": "tsc -p tsconfig.osi.json",
+    "build:truespeech": "tsc -p tsconfig.truespeech.json",
     "test": "tsx --test test/*.test.ts"
   }
 }

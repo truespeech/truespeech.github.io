@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>True Speech — Interactive Demo</title>
+  <link rel="stylesheet" href="truespeech/style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="intro">
+      <h1>True Speech</h1>
+      <p>True Speech is a small language for asking precise analytical questions on top of a semantic layer. The runtime sits one level above the semantic layer in the data stack: <em>database → semantic layer → True Speech</em>. Its purpose is to capture parts of the analytics practice that semantic models alone don't cover — currently a clean, region-oriented query language; in upcoming phases, a queryable <em>lexicon</em> of contextual knowledge about the data.</p>
+      <p>This phase shows the foundation: the <code>COMPUTE</code> statement. Type a query into the top panel — the runtime parses it, validates it against the semantic model, generates SQL, and executes it against an in-browser DuckDB. Errors are reported with Rust-style caret diagnostics. See the <a href="#language-reference">language reference</a> below.</p>
+      <p><a href="https://github.com/truespeech/truespeech">View source on GitHub</a> · Part of the <a href="/">truespeech</a> project</p>
+    </div>
+    <div id="demo"></div>
+
+    <div class="reference">
+      <h2 id="language-reference">COMPUTE language</h2>
+      <p>A <code>COMPUTE</code> statement names a metric, addresses a region of the data via the required <code>OVER</code> clause, and optionally groups, orders, and limits.</p>
+      <pre class="reference-code">COMPUTE &lt;metric&gt;
+  OVER &lt;time-region&gt; [AND &lt;constraint&gt;]...
+  [GROUP BY &lt;field&gt;[, ...]]
+  [ORDER BY &lt;field&gt; [ASC|DESC][, ...]]
+  [LIMIT &lt;n&gt;]</pre>
+
+      <h3>Time region</h3>
+      <p>The first clause of <code>OVER</code> is always the metric's primary time axis, written in a small calendar mini-language:</p>
+      <pre class="reference-code">2026                          -- the year
+2026-Q1                       -- a quarter
+2026-02                       -- a month
+2026-02-15                    -- a day
+2026-02-03 to 2026-02-10      -- a closed-inclusive range (same unit)
+until 2026-Q1                 -- everything up to and including
+since 2026-01-15              -- everything from that point onward
+all time                      -- unbounded</pre>
+
+      <h3>Additional constraints</h3>
+      <p>After the time region, additional constraints intersect with <code>AND</code>:</p>
+      <pre class="reference-code">AND region = 'northeast'
+AND region IN ('northeast', 'west')
+AND region NOT IN ('midwest')
+AND ship_date &gt;= 2026-02-01
+AND ship_date IN 2026-Q1                  -- IN extends to time containment
+AND ship_date IN 2026-02-01 to 2026-02-28</pre>
+
+      <h3>GROUP BY</h3>
+      <p>Bare grain words refer implicitly to the metric's primary time:</p>
+      <pre class="reference-code">GROUP BY month                -- primary time at month grain
+GROUP BY region               -- categorical dimension
+GROUP BY ship_date:week       -- explicit time dimension with grain</pre>
+
+      <h2 id="semantic-model">Semantic model</h2>
+      <p>The semantic model the runtime queries against. It defines two metrics (<code>total_sales</code> and <code>average_order_value</code>) and three dimensions (<code>order_date</code>, <code>region</code>, <code>product_tier</code>) over a single <code>orders</code> dataset. <code>order_date</code> is marked as the primary time dimension — that's what the bare-grain <code>GROUP BY month</code> and the calendar-literal forms in <code>OVER</code> bind to.</p>
+      <pre class="reference-code">semantic_model:
+  - name: retail_sales
+    description: Sales analytics model for retail operations
+    ai_context:
+      instructions: "Use this model for sales analysis and customer insights"
+    datasets:
+      - name: orders
+        source: orders
+        primary_key: [order_id]
+        fields:
+          - name: order_id
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "order_id"
+          - name: order_date
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "order_date"
+            dimension:
+              is_time: true
+              is_primary: true
+            description: Date the order was placed
+            ai_context:
+              synonyms:
+                - "date"
+                - "sale date"
+          - name: region
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "region"
+            dimension:
+              is_time: false
+            description: Sales region
+            ai_context:
+              synonyms:
+                - "sales region"
+                - "territory"
+          - name: product_tier
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "product_tier"
+            dimension:
+              is_time: false
+            description: Product tier classification
+            ai_context:
+              synonyms:
+                - "tier"
+                - "product category"
+              instructions: "Values are 'enterprise' and 'consumer'"
+          - name: amount
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: "amount"
+            description: Order amount in USD
+    metrics:
+      - name: total_sales
+        description: Total gross sales revenue
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: "SUM(orders.amount)"
+        ai_context:
+          synonyms:
+            - "sales"
+            - "revenue"
+            - "total revenue"
+      - name: average_order_value
+        description: Average value per order
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: "AVG(orders.amount)"
+        ai_context:
+          synonyms:
+            - "AOV"
+            - "average order size"
+          instructions: "Enterprise and consumer tiers have fundamentally
+            different price points; always scope to a specific product_tier
+            unless explicitly asked for a blended average."</pre>
+
+      <h2 id="database-schema">Database schema</h2>
+      <p>An in-browser DuckDB-WASM instance loaded with ~200 rows of sample sales data spanning January 2025 through April 2026.</p>
+      <pre class="reference-code">CREATE TABLE orders (
+    order_id      INTEGER PRIMARY KEY,
+    order_date    DATE NOT NULL,
+    region        VARCHAR(50) NOT NULL,
+    product_tier  VARCHAR(20) NOT NULL,
+    amount        DECIMAL(10, 2) NOT NULL
+);</pre>
+    </div>
+  </div>
+  <script type="module" src="truespeech/dist/main.js"></script>
+</body>
+</html>
