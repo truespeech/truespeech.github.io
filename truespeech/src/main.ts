@@ -10,6 +10,7 @@
 import { IMPORTS } from "./config.js";
 import { initDatabase, query as dbQuery } from "./db.js";
 import { createRepl, createConnector } from "./repl.js";
+import type { RowDecoration } from "./repl.js";
 import { createLexiconPanel } from "./lexicon-panel.js";
 
 interface ResolvedRegion {
@@ -39,6 +40,7 @@ type ExecuteResult =
       sql: string;
       results: { columns: string[]; rows: (string | number | null)[][] };
       reconciliation: LexiconMatch[];
+      region: ResolvedRegion;
     }
   | { statement: "register"; entry: LexiconEntry }
   | { statement: "check"; matches: LexiconMatch[] };
@@ -59,6 +61,7 @@ interface TsRuntimeApi {
   renderError: (error: any, source: string) => string;
   renderRegion: (region: ResolvedRegion) => string;
   formatTimeBucket: (isoStart: string, grain: Grain) => string;
+  endOfBucket: (isoStart: string, grain: Grain) => string;
   TrueSpeechExecutionError: new (errors: any[]) => Error & { errors: any[] };
 }
 
@@ -316,17 +319,136 @@ async function renderCompute(
 
   await new Promise((r) => setTimeout(r, 250));
   await connector.flashUp();
-  // The TS panel shows time buckets at their natural grain (2026-01,
-  // 2026-Q1) instead of as the bucket-start ISO date.
+
+  // The TS panel shows time buckets at their natural grain and surfaces
+  // any reconciliation matches per row: the row's slice of the data is
+  // tested against each match's impact region; matched rows get a
+  // warning highlight and an inline note column. The footer keeps the
+  // long natural-language description for each entry.
   const tsRows = formatTimeBucketColumns(result, tsModule.formatTimeBucket);
-  await tsRepl.appendTable(result.results.columns, tsRows, true);
+  const decorations = computeRowDecorations(
+    result,
+    tsModule.endOfBucket,
+    tsModule.renderRegion
+  );
+  await tsRepl.appendTable(result.results.columns, tsRows, {
+    animate: true,
+    decorations,
+  });
 
   if (result.reconciliation.length > 0) {
     tsRepl.appendOutput(
-      formatReconciliation(result.reconciliation, tsModule.renderRegion),
+      formatReconciliationFooter(result.reconciliation),
       "repl-reconciliation"
     );
   }
+}
+
+// Per-row reconciliation: for each row, build a region representing
+// what the row covers, then test each match's impact region against it.
+// A row matches an impact iff the time intervals overlap and the row's
+// fixed dim values are compatible with the impact's constraints (rows
+// that aggregate over a constrained dim still match — that's the
+// "partially affected" case, like a March total when the impact is
+// March + region='northeast').
+function computeRowDecorations(
+  result: Extract<ExecuteResult, { statement: "compute" }>,
+  endOfBucket: (iso: string, grain: Grain) => string,
+  renderRegion: (r: ResolvedRegion) => string
+): (RowDecoration | undefined)[] {
+  if (result.reconciliation.length === 0) return [];
+
+  const groupBys: { dimension: string; grain?: Grain }[] =
+    result.semanticQuery.groupBy ?? [];
+
+  return result.results.rows.map((row) => {
+    const rowRegion = buildRowRegion(row, groupBys, result.region, endOfBucket);
+    const hits = result.reconciliation.filter((m) =>
+      rowMatchesImpact(rowRegion, m.impact.region)
+    );
+    if (hits.length === 0) return undefined;
+    // Drop the metric from the inline note — the metric value cell on
+    // the same row is highlighted in the same warn color, so the link
+    // is visual. The footer carries the metric for full context.
+    const note = hits
+      .map((m) => `⚠ ${m.entry.name} · ${renderRegion(m.overlap)}`)
+      .join("; ");
+    return { highlight: "warn", note };
+  });
+}
+
+interface RowRegion {
+  timeStart: string;
+  timeEnd: string;
+  dimValues: Map<string, string | number>;
+}
+
+function buildRowRegion(
+  row: (string | number | null)[],
+  groupBys: { dimension: string; grain?: Grain }[],
+  queryRegion: ResolvedRegion,
+  endOfBucket: (iso: string, grain: Grain) => string
+): RowRegion {
+  let timeStart = queryRegion.timeStart;
+  let timeEnd = queryRegion.timeEnd;
+  const dimValues = new Map<string, string | number>();
+
+  // Inherit any equality constraints from the query's OVER region — e.g.
+  // a top-level `AND region = 'west'` pins every row to that value.
+  for (const c of queryRegion.constraints) {
+    if (c.operator === "=" && !Array.isArray(c.value)) {
+      dimValues.set(c.dimension, c.value);
+    }
+  }
+
+  for (let i = 0; i < groupBys.length; i++) {
+    const gb = groupBys[i];
+    const cell = row[i];
+    if (gb.grain && cell != null) {
+      const iso = String(cell).slice(0, 10);
+      timeStart = iso;
+      timeEnd = endOfBucket(iso, gb.grain);
+    } else if (!gb.grain && cell != null && typeof cell !== "object") {
+      dimValues.set(gb.dimension, cell as string | number);
+    }
+  }
+  return { timeStart, timeEnd, dimValues };
+}
+
+function rowMatchesImpact(row: RowRegion, impact: ResolvedRegion): boolean {
+  if (row.timeEnd < impact.timeStart) return false;
+  if (row.timeStart > impact.timeEnd) return false;
+  for (const c of impact.constraints) {
+    const rowVal = row.dimValues.get(c.dimension);
+    if (rowVal === undefined) continue; // row aggregates this dim
+    if (!constraintAllowsValue(c, rowVal)) return false;
+  }
+  return true;
+}
+
+function constraintAllowsValue(
+  c: ResolvedRegion["constraints"][number],
+  val: string | number
+): boolean {
+  switch (c.operator) {
+    case "=":
+      return val === c.value;
+    case "!=":
+      return val !== c.value;
+    case ">":
+      return val > (c.value as string | number);
+    case "<":
+      return val < (c.value as string | number);
+    case ">=":
+      return val >= (c.value as string | number);
+    case "<=":
+      return val <= (c.value as string | number);
+    case "in":
+      return Array.isArray(c.value) && c.value.includes(val);
+    case "not_in":
+      return Array.isArray(c.value) && !c.value.includes(val);
+  }
+  return false;
 }
 
 // Post-process result rows so that columns originating from a time-grain
@@ -385,14 +507,22 @@ function renderCheck(
   );
 }
 
-function formatReconciliation(
-  matches: LexiconMatch[],
-  renderRegion: (r: ResolvedRegion) => string
-): string {
-  const header = matches.length === 1
-    ? `⚠ Reconciliation: 1 lexicon entry overlaps this region`
-    : `⚠ Reconciliation: ${matches.length} lexicon entries overlap this region`;
-  return `${header}\n${formatMatches(matches, renderRegion)}`;
+function formatReconciliationFooter(matches: LexiconMatch[]): string {
+  // The per-row note column carries the entry name + overlap, and the
+  // colored metric value visually identifies *which* metric. The footer
+  // spells out the impacted metric explicitly and carries the natural-
+  // language description for each entry.
+  const header =
+    matches.length === 1
+      ? `⚠ Reconciliation: 1 lexicon entry overlaps this region`
+      : `⚠ Reconciliation: ${matches.length} lexicon entries overlap this region`;
+  const body = matches
+    .map(
+      (m) =>
+        `  • ${m.entry.name} (${m.impact.metric})\n      "${m.entry.description}"`
+    )
+    .join("\n");
+  return `${header}\n${body}`;
 }
 
 function formatMatches(

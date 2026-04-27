@@ -326,6 +326,10 @@ body {
   margin-top: 6px;
 }
 
+.repl-warn-cell {
+  color: #e8d048;
+}
+
 /* Connector between panels */
 
 .repl-connector {

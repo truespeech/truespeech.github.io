@@ -6,10 +6,18 @@ export interface ReplOptions {
     onSubmit: (input: string) => void | Promise<void>;
     label?: string;
 }
+export interface RowDecoration {
+    highlight?: "warn";
+    note?: string;
+}
+export interface AppendTableOptions {
+    animate?: boolean;
+    decorations?: (RowDecoration | undefined)[];
+}
 export interface Repl {
     appendOutput(text: string, className?: string): void;
     appendError(text: string): void;
-    appendTable(columns: string[], rows: (string | number | null)[][], animate?: boolean): Promise<void>;
+    appendTable(columns: string[], rows: (string | number | null)[][], options?: AppendTableOptions): Promise<void>;
     appendSQL(sql: string): void;
     clear(): void;
     focus(): void;
