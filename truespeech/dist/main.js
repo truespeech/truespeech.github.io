@@ -211,14 +211,42 @@ async function handleTsCommand(input, ts, tsModule, tsRepl, dbRepl, connector, l
 async function renderCompute(result, tsRepl, dbRepl, connector, tsModule) {
     tsRepl.appendSQL(result.sql);
     await connector.flashDown();
+    // The DB panel shows raw rows (it's the database's view of the world).
     dbRepl.appendOutput(`ts> ${result.sql}`, "repl-echo");
     dbRepl.appendTable(result.results.columns, result.results.rows);
     await new Promise((r) => setTimeout(r, 250));
     await connector.flashUp();
-    await tsRepl.appendTable(result.results.columns, result.results.rows, true);
+    // The TS panel shows time buckets at their natural grain (2026-01,
+    // 2026-Q1) instead of as the bucket-start ISO date.
+    const tsRows = formatTimeBucketColumns(result, tsModule.formatTimeBucket);
+    await tsRepl.appendTable(result.results.columns, tsRows, true);
     if (result.reconciliation.length > 0) {
         tsRepl.appendOutput(formatReconciliation(result.reconciliation, tsModule.renderRegion), "repl-reconciliation");
     }
+}
+// Post-process result rows so that columns originating from a time-grain
+// GROUP BY render at their natural grain. The runtime's column rename
+// makes group-by columns appear in the same order as semanticQuery.groupBy,
+// so we match by index — no name parsing required.
+function formatTimeBucketColumns(result, formatTimeBucket) {
+    const groupBys = result.semanticQuery.groupBy ?? [];
+    const grainByCol = new Map();
+    for (let i = 0; i < groupBys.length; i++) {
+        const g = groupBys[i].grain;
+        if (g)
+            grainByCol.set(i, g);
+    }
+    if (grainByCol.size === 0)
+        return result.results.rows;
+    return result.results.rows.map((row) => row.map((cell, i) => {
+        const grain = grainByCol.get(i);
+        if (!grain)
+            return cell;
+        if (cell == null)
+            return cell;
+        const iso = String(cell).slice(0, 10);
+        return formatTimeBucket(iso, grain);
+    }));
 }
 function renderRegister(result, tsRepl) {
     const e = result.entry;
