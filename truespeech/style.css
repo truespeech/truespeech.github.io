@@ -69,6 +69,134 @@ body {
   background: #ccc;
 }
 
+/* Lexicon panel */
+
+.lexicon-panel {
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.lexicon-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.lexicon-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #444;
+}
+
+.lexicon-count {
+  font-size: 12px;
+  color: #888;
+}
+
+.lexicon-reset {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  color: #444;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.lexicon-reset:hover {
+  background: #f0f0f0;
+  border-color: #aaa;
+}
+
+.lexicon-entries {
+  display: flex;
+  flex-direction: column;
+}
+
+.lexicon-empty {
+  padding: 14px 12px;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+
+.lexicon-entry {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  gap: 8px;
+}
+
+.lexicon-entry:last-child {
+  border-bottom: none;
+}
+
+.lexicon-entry-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lexicon-entry-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.lexicon-entry-name {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.lexicon-entry-impact {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #444;
+  background: #ececec;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.lexicon-entry-desc {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.lexicon-entry-delete {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 16px;
+  line-height: 1;
+  color: #999;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.lexicon-entry-delete:hover {
+  color: #c92a2a;
+  border-color: #f5b8b8;
+  background: #fff0f0;
+}
+
 /* REPL panels */
 
 .repl-panel {
@@ -183,6 +311,19 @@ body {
 
 .repl-success {
   color: #4ec9b0;
+}
+
+.repl-register {
+  color: #4ec9b0;
+}
+
+.repl-check {
+  color: #c0c0e0;
+}
+
+.repl-reconciliation {
+  color: #e8d048;
+  margin-top: 6px;
 }
 
 /* Connector between panels */
