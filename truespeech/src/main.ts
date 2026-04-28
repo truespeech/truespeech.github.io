@@ -112,10 +112,10 @@ function cloneEntry(e: LexiconEntry): LexiconEntry {
 }
 
 const SEED_STATEMENTS = [
-  `REGISTER q1_data_quality_issue
+  `REGISTER region q1_data_quality_issue
      IMPACTING total_sales OVER 2026-02-15 to 2026-02-20
      WITH "Order amounts undercounted by ~12% during a backfill window — investigate before reporting Q1 totals."`,
-  `REGISTER northeast_fulfillment_outage
+  `REGISTER region northeast_fulfillment_outage
      IMPACTING total_sales OVER 2026-03-08 to 2026-03-12 AND region = 'northeast'
      WITH "Northeast distribution center went offline; orders deferred or lost during this window."`,
 ];
@@ -219,7 +219,7 @@ async function main() {
       {
         label: "Register a flag",
         command:
-          `REGISTER promo_spike\n  IMPACTING total_sales OVER 2026-03-15 to 2026-03-22\n  WITH "Spring promotion ran during this window"`,
+          `REGISTER region promo_spike\n  IMPACTING total_sales OVER 2026-03-15 to 2026-03-22\n  WITH "Spring promotion ran during this window"`,
       },
     ];
 
