@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>truespeech Regions</title>
+  <style>
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #ffffff;
+    }
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 56px 24px 96px;
+    }
+
+    /* Hero */
+    .kicker {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #888;
+      margin: 0 0 12px;
+    }
+    h1 {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      line-height: 1.15;
+      margin: 0 0 18px;
+    }
+    .lede {
+      font-size: 19px;
+      line-height: 1.5;
+      color: #333;
+      margin: 0 0 36px;
+    }
+
+    /* Sections */
+    section { margin-top: 48px; }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.005em;
+      margin: 0 0 14px;
+    }
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 24px 0 8px;
+    }
+    p { margin: 0 0 14px; }
+    a { color: #1a1a1a; }
+    a:hover { color: #555; }
+
+    /* Inline code */
+    code {
+      font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+      font-size: 0.9em;
+      background: #f3f3f3;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    /* Code blocks (markdown-style, light bg, no scroll) */
+    pre.code {
+      background: #f5f5f5;
+      color: #2a2a2a;
+      border: 1px solid #e6e6e6;
+      font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 14px 16px;
+      border-radius: 4px;
+      margin: 12px 0 16px;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* Highlighted code block — darker bg, lowercase keywords with color */
+    pre.code-hl {
+      background: #ececec;
+      color: #2a2a2a;
+      border: 1px solid #c8c8c8;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 14px 16px;
+      border-radius: 4px;
+      margin: 12px 0 16px;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    pre.code-hl .kw { color: #005cc5; }
+    pre.code-hl .str { color: #22863a; }
+    pre.code-hl .prompt { color: #999; }
+    pre.code-hl .ok { color: #22863a; }
+    pre.code-hl .warn { color: #a86b00; }
+    pre.code-hl .cmt { color: #999; font-style: italic; }
+    pre.code-hl .region-hl { background: #cfe7fb; border-radius: 2px; }
+    h2 .kw { color: #005cc5; }
+
+    /* Result table — HTML, monospace cells */
+    table.result {
+      border-collapse: collapse;
+      margin: 12px 0 6px;
+      font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+      font-size: 13px;
+      background: #fafafa;
+      border: 1px solid #e6e6e6;
+    }
+    table.result th,
+    table.result td {
+      padding: 6px 12px;
+      border-bottom: 1px solid #ececec;
+      text-align: left;
+      white-space: nowrap;
+    }
+    table.result th {
+      background: #f0f0f0;
+      font-weight: 700;
+      color: #444;
+      border-bottom: 1px solid #d8d8d8;
+    }
+    table.result tr:last-child td { border-bottom: none; }
+    table.result td.warn,
+    table.result td.note-warn {
+      color: #a86b00;
+      font-weight: 600;
+    }
+    .row-count {
+      font-size: 12px;
+      color: #888;
+      margin: 0 0 14px;
+    }
+
+    /* Reconciliation callout (replaces the dark footer) */
+    .reconciliation {
+      border-left: 3px solid #d4ad33;
+      background: #fdf7e3;
+      color: #5a4500;
+      padding: 10px 14px;
+      margin: 4px 0 18px;
+      font-size: 14px;
+      border-radius: 0 4px 4px 0;
+    }
+    .reconciliation strong { color: #4a3700; }
+    .reconciliation .desc {
+      font-style: italic;
+      color: #6a5400;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* Schematic */
+    figure { margin: 20px 0; }
+    figure img {
+      display: block;
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      margin: 0 auto;
+      border-radius: 4px;
+    }
+
+    /* CTA + footer */
+    .demo-link {
+      display: inline-block;
+      margin: 8px 12px 8px 0;
+      padding: 8px 16px;
+      background: #1a1a1a;
+      color: #fff !important;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .demo-link:hover { background: #333; color: #fff !important; }
+    ul.tight { margin: 8px 0 16px; padding-left: 22px; }
+    ul.tight li { margin: 4px 0; }
+    .footer-nav {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e5e5;
+      font-size: 14px;
+      color: #888;
+    }
+    .footer-nav a { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+
+    <p class="kicker">True Speech</p>
+    <h1>truespeech Regions</h1>
+    <p class="lede">truespeech is a language for codifying and automating aspects of your analytics practice. The initial release supports regions — annotations that mark parts of your database with curated context. Accumulated incrementally, they become living documentation that surfaces automatically alongside relevant queries.</p>
+
+    <!-- ============================================================
+         Hello World
+         ============================================================ -->
+    <section id="hello">
+      <h2>Documenting last summer's bot attack</h2>
+
+      <p>An analyst uses truespeech to record the event. Subsequent queries automatically include the analyst's warning alongside the results, when relevant.</p>
+
+<pre class="code-hl"><span class="prompt">ts&gt; </span><span class="kw">register</span> <span class="kw">region</span> bot_attack_july
+      <span class="kw">impacting</span> total_signups <span class="kw">over</span> 2025-07
+      <span class="kw">with</span> <span class="str">"Credential-stuffing campaign inflated signups."</span>
+<span class="ok">✓ Registered "bot_attack_july" with 1 impact</span>
+
+<span class="cmt"># ...later...</span>
+
+<span class="prompt">ts&gt; </span><span class="kw">compute</span> total_signups <span class="kw">over</span> 2025 <span class="kw">group</span> <span class="kw">by</span> month <span class="kw">order</span> <span class="kw">by</span> month
+
+┌─────────┬───────────────┬─────────────────────────────┐
+│ month   │ total_signups │ note                        │
+├─────────┼───────────────┼─────────────────────────────┤
+│ 2025-05 │ 14820         │                             │
+│ 2025-06 │ 13560         │                             │
+│ 2025-07 │ <span class="warn">48910        </span> │ <span class="warn">⚠ bot_attack_july · 2025-07</span> │
+│ 2025-08 │ 14102         │                             │
+└─────────┴───────────────┴─────────────────────────────┘
+(4 rows shown, May–Aug)
+
+<span class="warn">⚠ Reconciliation: 1 lexicon entry overlaps this region
+  • bot_attack_july (total_signups)
+      "Credential-stuffing campaign inflated signups."</span></pre>
+    </section>
+
+    <!-- ============================================================
+         Concept tour
+         ============================================================ -->
+    <section id="regions">
+      <h2>Core Concept: Regions</h2>
+      <p>A region is a contiguous slice of your data, defined in terms of the semantic layer's dimensions. Concretely: a conjunction of predicates over those dimensions. The metric's primary time dimension gets a convenient mini-language so the common case stays terse.</p>
+
+<pre class="code-hl"><span class="prompt">ts&gt; </span><span class="kw">register</span> <span class="kw">region</span> holiday_promo
+      <span class="kw">impacting</span> orders <span class="region-hl"><span class="kw">over</span> 2024-Q4</span>
+      <span class="kw">with</span> <span class="str">"Holiday discount campaign."</span>
+
+<span class="prompt">ts&gt; </span><span class="kw">register</span> <span class="kw">region</span> eu_outage
+      <span class="kw">impacting</span> orders <span class="region-hl"><span class="kw">over</span> 2025-03-14 <span class="kw">to</span> 2025-03-16</span>
+      <span class="kw">with</span> <span class="str">"EU fulfillment center down."</span>
+
+<span class="prompt">ts&gt; </span><span class="kw">register</span> <span class="kw">region</span> b2b_price_test
+      <span class="kw">impacting</span> average_order_value <span class="region-hl"><span class="kw">over</span> <span class="kw">since</span> 2025-01-15 <span class="kw">and</span> segment = <span class="str">'b2b'</span></span>
+      <span class="kw">with</span> <span class="str">"B2B price test, indefinite duration."</span>
+
+<span class="prompt">ts&gt; </span><span class="kw">compute</span> orders <span class="region-hl"><span class="kw">over</span> <span class="kw">since</span> 2025-01-01</span> <span class="kw">group</span> <span class="kw">by</span> month
+
+<span class="prompt">ts&gt; </span><span class="kw">compute</span> orders <span class="region-hl"><span class="kw">over</span> 2025-Q1 <span class="kw">and</span> channel = <span class="str">'paid'</span> <span class="kw">and</span> country = <span class="str">'DE'</span></span>
+
+<span class="prompt">ts&gt; </span><span class="kw">compute</span> orders <span class="region-hl"><span class="kw">over</span> <span class="kw">all</span> <span class="kw">time</span> <span class="kw">and</span> product_tier = <span class="str">'enterprise'</span></span></pre>
+    </section>
+
+    <section id="register">
+      <h2><span class="kw">register</span> region</h2>
+
+      <ul class="tight">
+        <li>Adds one entry to the lexicon: a curated fact about a region of the data, with a natural-language description.</li>
+        <li>Scoped to one or more affected metrics — the entry surfaces only on queries that touch them.</li>
+        <li>The <code>region</code> keyword names the entry's <em>kind</em>. Today only <code>region</code> is defined; the lexicon is designed to grow as more shapes (boundaries, cycles) are added.</li>
+      </ul>
+
+<pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">register</span> <span class="kw">region</span> &lt;name&gt;
+  <span class="kw">impacting</span> &lt;metric&gt;[, &lt;metric&gt;...]
+  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]
+  <span class="kw">with</span> <span class="str">"&lt;description&gt;"</span>
+
+<span class="cmt"># example — every slot used</span>
+<span class="kw">register</span> <span class="kw">region</span> de_pricing_q1
+  <span class="kw">impacting</span> orders, churn
+  <span class="kw">over</span> 2025-Q1 <span class="kw">and</span> country = <span class="str">'DE'</span> <span class="kw">and</span> tier = <span class="str">'enterprise'</span>
+  <span class="kw">with</span> <span class="str">"Q1 enterprise price test; orders and churn both affected."</span></pre>
+    </section>
+
+    <section id="compute">
+      <h2><span class="kw">compute</span></h2>
+
+      <ul class="tight">
+        <li>Runs a metric query over a region — same region syntax as <code>register region</code>.</li>
+        <li>Adds the SQL-style modifiers <code>group by</code>, <code>order by</code>, and <code>limit</code> for shaping the result.</li>
+        <li>Every <code>compute</code> is automatically reconciled against the lexicon — that's the engine that produced the annotation in the opening example.</li>
+      </ul>
+
+<pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">compute</span> &lt;metric&gt;
+  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]
+  [<span class="kw">group</span> <span class="kw">by</span> &lt;dimension&gt;[, &lt;dimension&gt;...]]
+  [<span class="kw">order</span> <span class="kw">by</span> &lt;column&gt; [<span class="kw">asc</span>|<span class="kw">desc</span>]]
+  [<span class="kw">limit</span> &lt;n&gt;]
+
+<span class="cmt"># example — every slot used</span>
+<span class="kw">compute</span> signups
+  <span class="kw">over</span> 2025-Q4 <span class="kw">and</span> country = <span class="str">'US'</span>
+  <span class="kw">group</span> <span class="kw">by</span> month, channel
+  <span class="kw">order</span> <span class="kw">by</span> signups <span class="kw">desc</span>
+  <span class="kw">limit</span> 10</pre>
+    </section>
+
+    <section id="check">
+      <h2><span class="kw">check</span></h2>
+
+      <ul class="tight">
+        <li>Queries the lexicon directly — no database hit, no metric computation.</li>
+        <li>Returns matching lexicon entries with the actual region overlap computed.</li>
+        <li>Useful when you want to ask <em>"what do we know about this slice of the data?"</em> without pulling the numbers.</li>
+      </ul>
+
+<pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">check</span> &lt;metric&gt;
+  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]
+
+<span class="cmt"># example — every slot used</span>
+<span class="kw">check</span> signups
+  <span class="kw">over</span> 2025-Q3 <span class="kw">and</span> country = <span class="str">'US'</span></pre>
+    </section>
+
+    <!-- ============================================================
+         In your data infrastructure
+         ============================================================ -->
+    <section id="infra">
+      <h2>The big picture</h2>
+
+      <figure>
+        <img src="images/truespeech-architecture.png" alt="Architecture diagram: a data consumer issues queries through Claude Code, which calls the truespeech runtime. The runtime executes via the semantic layer against the database. The analyst curates the truespeech lexicon (which feeds into the runtime) and maintains the semantic layer.">
+      </figure>
+
+      <p>The truespeech runtime sits in front of the semantic layer, mediating all queries, automatically finding relevant context from the lexicon and surfacing it alongside the query results for humans and agents alike.</p>
+
+      <p>Analysts have two levers for managing the analytics practice: the semantic layer, which maps business data concepts to SQL, and the truespeech lexicon, which remembers additional layers of nuance around specific regions.</p>
+    </section>
+
+    <!-- ============================================================
+         Learn more
+         ============================================================ -->
+    <section id="more">
+      <h2>Learn more</h2>
+
+      <a class="demo-link" href="truespeech.html">Open the sandbox →</a>
+      <a class="demo-link" href="truespeech.html#language-reference">Language reference →</a>
+
+      <p style="margin-top: 16px;">truespeech is a broader project — see the <a href="/">project home</a> or follow the work on <a href="https://github.com/truespeech/truespeech">GitHub</a>.</p>
+    </section>
+
+    <nav class="footer-nav">
+      <a href="/">← truespeech</a>
+    </nav>
+
+  </main>
+</body>
+</html>
