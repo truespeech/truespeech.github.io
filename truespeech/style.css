@@ -17,20 +17,49 @@ body {
   padding: 32px 24px 64px;
 }
 
+/* Inline code */
+
+code {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 0.9em;
+  background: #f3f3f3;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
 /* Intro */
 
 .intro {
-  margin-bottom: 32px;
+  max-width: 760px;
+  margin-bottom: 48px;
 }
 
-.intro h1 {
-  font-size: 24px;
+.kicker {
+  font-size: 13px;
   font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #888;
   margin: 0 0 12px;
 }
 
+.intro h1 {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin: 0 0 18px;
+}
+
+.intro .lede {
+  font-size: 19px;
+  line-height: 1.5;
+  color: #333;
+  margin: 0 0 16px;
+}
+
 .intro p {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   color: #444;
 }
 
@@ -200,8 +229,10 @@ body {
 /* REPL panels */
 
 .repl-panel {
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: #f4f0e0;
+  border: 1px solid #c8c0a0;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   position: relative;
 }
 
@@ -211,7 +242,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #666;
+  color: #5a5230;
   padding: 8px 12px 0;
 }
 
@@ -239,13 +270,13 @@ body {
   display: flex;
   align-items: center;
   padding: 4px 12px 8px;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid #d8d0b0;
 }
 
 .repl-prompt {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 13px;
-  color: #888;
+  color: #7a7355;
   white-space: pre;
   user-select: none;
 }
@@ -255,28 +286,29 @@ body {
   background: transparent;
   border: none;
   outline: none;
-  color: #e0e0e0;
+  color: #1f4d1f;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 13px;
-  caret-color: #e0e0e0;
+  caret-color: #1f4d1f;
 }
 
 .repl-submit-btn {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 11px;
-  color: #888;
-  background: #2a2a2a;
-  border: 1px solid #444;
+  color: #5a5230;
+  background: #ece5cc;
+  border: 1px solid #b8b090;
   border-radius: 3px;
   padding: 2px 8px;
   cursor: pointer;
   margin-left: 8px;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
 .repl-submit-btn:hover {
-  color: #e0e0e0;
-  border-color: #888;
+  color: #2a2618;
+  background: #e0d8b8;
+  border-color: #8a805a;
 }
 
 /* Output lines */
@@ -287,47 +319,47 @@ body {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 1.5;
-  color: #e0e0e0;
+  color: #1f4d1f;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
 .repl-echo {
-  color: #888;
+  color: #8a7a55;
 }
 
 .repl-error {
-  color: #f44747;
+  color: #c92a2a;
 }
 
 .repl-sql {
-  color: #888;
+  color: #8a7a40;
   font-style: italic;
 }
 
 .repl-table {
-  color: #e0e0e0;
+  color: #1f4d1f;
 }
 
 .repl-success {
-  color: #4ec9b0;
+  color: #2e7d2e;
 }
 
 .repl-register {
-  color: #4ec9b0;
+  color: #2e7d2e;
 }
 
 .repl-check {
-  color: #c0c0e0;
+  color: #5e5e8a;
 }
 
 .repl-reconciliation {
-  color: #e8d048;
+  color: #a86b00;
   margin-top: 6px;
 }
 
 .repl-warn-cell {
-  color: #e8d048;
+  color: #a86b00;
 }
 
 /* Connector between panels */
@@ -357,42 +389,64 @@ body {
 }
 
 .connector-arrow.active {
-  color: #2ee8a8;
-  text-shadow: 0 0 12px rgba(46, 232, 168, 0.7), 0 0 24px rgba(46, 232, 168, 0.3);
+  color: #2e7d2e;
+  text-shadow: 0 0 12px rgba(46, 125, 46, 0.7), 0 0 24px rgba(46, 125, 46, 0.3);
 }
 
 /* Reference sections */
 
 .reference {
+  max-width: 760px;
   margin-top: 64px;
   border-top: 1px solid #e0e0e0;
   padding-top: 40px;
 }
 
 .reference h2 {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  margin: 0 0 8px;
+  letter-spacing: -0.005em;
+  margin: 32px 0 14px;
 }
 
-.reference h2 + p {
-  color: #555;
-  font-size: 15px;
-  margin: 0 0 16px;
+.reference h2:first-child {
+  margin-top: 0;
 }
 
-.reference-code {
-  background: #f5f5f5;
-  color: #333;
-  border: 1px solid #e0e0e0;
+.reference h2 .kw {
+  color: #005cc5;
+}
+
+.reference h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 24px 0 8px;
+}
+
+.reference h2 + p,
+.reference h3 + p {
+  color: #444;
+  margin: 0 0 12px;
+}
+
+pre.code-hl {
+  background: #ececec;
+  color: #2a2a2a;
+  border: 1px solid #c8c8c8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
-  padding: 16px 20px;
+  padding: 14px 16px;
   border-radius: 4px;
+  margin: 12px 0 24px;
+  white-space: pre;
   overflow-x: auto;
-  margin: 0 0 40px;
 }
+
+pre.code-hl .kw { color: #005cc5; }
+pre.code-hl .str { color: #22863a; }
+pre.code-hl .cmt { color: #999; font-style: italic; }
 
 /* Loading state */
 

@@ -202,7 +202,7 @@ export function createRepl(options: ReplOptions): Repl {
   }
 
   function focus(): void {
-    input.focus();
+    input.focus({ preventScroll: true });
   }
 
   function submit(command: string): void {
@@ -216,7 +216,7 @@ export function createRepl(options: ReplOptions): Repl {
 
   function setInput(text: string): void {
     input.value = text;
-    input.focus();
+    input.focus({ preventScroll: true });
   }
 
   // Submit button
@@ -372,10 +372,10 @@ function formatTable(
 
   // If the natural table would overflow the available panel width and
   // there's a note column, shrink only the note column to fit (down to
-  // MIN_NOTE_WIDTH). Border/padding overhead is 2 chars per column for
-  // the surrounding spaces, plus 1 for the leftmost border.
+  // MIN_NOTE_WIDTH). Border/padding overhead is 3 chars per column
+  // (left border + 2 surrounding spaces), plus 1 for the rightmost border.
   if (noteColIdx >= 0 && maxWidth !== undefined) {
-    const overhead = 2 * cols.length + 1;
+    const overhead = 3 * cols.length + 1;
     const naturalTotal =
       widths.reduce((a, b) => a + b, 0) + overhead;
     if (naturalTotal > maxWidth) {

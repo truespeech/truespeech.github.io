@@ -3,57 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>True Speech — Interactive Demo</title>
+  <title>truespeech Sandbox</title>
   <link rel="stylesheet" href="truespeech/style.css">
 </head>
 <body>
   <div class="page">
     <div class="intro">
-      <h1>True Speech</h1>
-      <p>True Speech is a small language for asking precise analytical questions on top of a semantic layer. The runtime sits one level above the semantic layer in the data stack: <em>database → semantic layer → True Speech</em>. Its purpose is to capture parts of the analytics practice that semantic models alone don't cover — currently a clean, region-oriented query language; in upcoming phases, a queryable <em>lexicon</em> of contextual knowledge about the data.</p>
-      <p>This phase shows the foundation: the <code>COMPUTE</code> statement. Type a query into the top panel — the runtime parses it, validates it against the semantic model, generates SQL, and executes it against an in-browser DuckDB. Errors are reported with Rust-style caret diagnostics. See the <a href="#language-reference">language reference</a> below.</p>
+      <p class="kicker">True Speech</p>
+      <h1>truespeech Sandbox</h1>
+      <p class="lede">truespeech is a small language for asking precise analytical questions on top of a semantic layer, plus a queryable <em>lexicon</em> of contextual knowledge about the data. The runtime sits in front of the semantic layer in the data stack: <em>database → semantic layer → truespeech</em>.</p>
+      <p>Type a statement into the top panel. Use <code>compute</code> to run a metric query, <code>register</code> to add a lexicon entry, or <code>check</code> to look up what the lexicon knows about a slice. The runtime parses, validates against the semantic model, generates SQL where needed, and executes against an in-browser DuckDB. Errors are reported with Rust-style caret diagnostics. See the <a href="#regions">language reference</a> below.</p>
       <p><a href="https://github.com/truespeech/truespeech">View source on GitHub</a> · Part of the <a href="/">truespeech</a> project</p>
     </div>
     <div id="demo"></div>
 
     <div class="reference">
-      <h2 id="language-reference">COMPUTE language</h2>
-      <p>A <code>COMPUTE</code> statement names a metric, addresses a region of the data via the required <code>OVER</code> clause, and optionally groups, orders, and limits.</p>
-      <pre class="reference-code">COMPUTE &lt;metric&gt;
-  OVER &lt;time-region&gt; [AND &lt;constraint&gt;]...
-  [GROUP BY &lt;field&gt;[, ...]]
-  [ORDER BY &lt;field&gt; [ASC|DESC][, ...]]
-  [LIMIT &lt;n&gt;]</pre>
+      <h2 id="regions">Regions</h2>
+      <p>A region is a contiguous slice of your data, defined by a time range plus any number of dimension constraints. The same region syntax is used by all three constructs (<code>register region</code>, <code>compute</code>, <code>check</code>).</p>
+      <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]</pre>
 
-      <h3>Time region</h3>
-      <p>The first clause of <code>OVER</code> is always the metric's primary time axis, written in a small calendar mini-language:</p>
-      <pre class="reference-code">2026                          -- the year
-2026-Q1                       -- a quarter
-2026-02                       -- a month
-2026-02-15                    -- a day
-2026-02-03 to 2026-02-10      -- a closed-inclusive range (same unit)
-until 2026-Q1                 -- everything up to and including
-since 2026-01-15              -- everything from that point onward
-all time                      -- unbounded</pre>
+      <h3>Time expression</h3>
+      <p>The first clause of <code>over</code> is always the metric's primary time axis, written in a small calendar mini-language:</p>
+      <pre class="code-hl">2026                          <span class="cmt">-- the year</span>
+2026-Q1                       <span class="cmt">-- a quarter</span>
+2026-02                       <span class="cmt">-- a month</span>
+2026-02-15                    <span class="cmt">-- a day</span>
+2026-02-03 <span class="kw">to</span> 2026-02-10      <span class="cmt">-- a closed-inclusive range (same unit)</span>
+<span class="kw">until</span> 2026-Q1                 <span class="cmt">-- everything up to and including</span>
+<span class="kw">since</span> 2026-01-15              <span class="cmt">-- everything from that point onward</span>
+<span class="kw">all</span> <span class="kw">time</span>                      <span class="cmt">-- unbounded</span></pre>
 
       <h3>Additional constraints</h3>
-      <p>After the time region, additional constraints intersect with <code>AND</code>:</p>
-      <pre class="reference-code">AND region = 'northeast'
-AND region IN ('northeast', 'west')
-AND region NOT IN ('midwest')
-AND ship_date &gt;= 2026-02-01
-AND ship_date IN 2026-Q1                  -- IN extends to time containment
-AND ship_date IN 2026-02-01 to 2026-02-28</pre>
+      <p>After the time expression, additional constraints intersect with <code>and</code>:</p>
+      <pre class="code-hl"><span class="kw">and</span> region = <span class="str">'northeast'</span>
+<span class="kw">and</span> region <span class="kw">in</span> (<span class="str">'northeast'</span>, <span class="str">'west'</span>)
+<span class="kw">and</span> region <span class="kw">not</span> <span class="kw">in</span> (<span class="str">'midwest'</span>)
+<span class="kw">and</span> ship_date &gt;= 2026-02-01
+<span class="kw">and</span> ship_date <span class="kw">in</span> 2026-Q1                  <span class="cmt">-- in extends to time containment</span>
+<span class="kw">and</span> ship_date <span class="kw">in</span> 2026-02-01 <span class="kw">to</span> 2026-02-28</pre>
 
-      <h3>GROUP BY</h3>
+      <h2 id="register"><span class="kw">register</span> region</h2>
+      <p>Adds an entry to the lexicon — a curated fact about a region of the data, scoped to one or more affected metrics, with a natural-language description.</p>
+      <pre class="code-hl"><span class="kw">register</span> <span class="kw">region</span> &lt;name&gt;
+  <span class="kw">impacting</span> &lt;metric&gt;[, &lt;metric&gt;...]
+  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]
+  <span class="kw">with</span> <span class="str">"&lt;description&gt;"</span></pre>
+
+      <h2 id="compute"><span class="kw">compute</span></h2>
+      <p>Runs a metric query over a region. Reconciled against the lexicon automatically — relevant entries arrive alongside the result.</p>
+      <pre class="code-hl"><span class="kw">compute</span> &lt;metric&gt;
+  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]
+  [<span class="kw">group</span> <span class="kw">by</span> &lt;field&gt;[, ...]]
+  [<span class="kw">order</span> <span class="kw">by</span> &lt;field&gt; [<span class="kw">asc</span>|<span class="kw">desc</span>][, ...]]
+  [<span class="kw">limit</span> &lt;n&gt;]</pre>
+
+      <h3>Group by</h3>
       <p>Bare grain words refer implicitly to the metric's primary time:</p>
-      <pre class="reference-code">GROUP BY month                -- primary time at month grain
-GROUP BY region               -- categorical dimension
-GROUP BY ship_date:week       -- explicit time dimension with grain</pre>
+      <pre class="code-hl"><span class="kw">group</span> <span class="kw">by</span> month                <span class="cmt">-- primary time at month grain</span>
+<span class="kw">group</span> <span class="kw">by</span> region               <span class="cmt">-- categorical dimension</span>
+<span class="kw">group</span> <span class="kw">by</span> ship_date:week       <span class="cmt">-- explicit time dimension with grain</span></pre>
+
+      <h2 id="check"><span class="kw">check</span></h2>
+      <p>Looks up matching lexicon entries for a region — no database hit, no metric computation. Useful for asking <em>"what do we know about this slice of the data?"</em> without pulling the numbers.</p>
+      <pre class="code-hl"><span class="kw">check</span> &lt;metric&gt;
+  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]</pre>
 
       <h2 id="semantic-model">Semantic model</h2>
-      <p>The semantic model the runtime queries against. It defines two metrics (<code>total_sales</code> and <code>average_order_value</code>) and three dimensions (<code>order_date</code>, <code>region</code>, <code>product_tier</code>) over a single <code>orders</code> dataset. <code>order_date</code> is marked as the primary time dimension — that's what the bare-grain <code>GROUP BY month</code> and the calendar-literal forms in <code>OVER</code> bind to.</p>
-      <pre class="reference-code">semantic_model:
+      <p>The semantic model the runtime queries against. It defines two metrics (<code>total_sales</code> and <code>average_order_value</code>) and three dimensions (<code>order_date</code>, <code>region</code>, <code>product_tier</code>) over a single <code>orders</code> dataset. <code>order_date</code> is marked as the primary time dimension — that's what the bare-grain <code>group by month</code> and the calendar-literal forms in <code>over</code> bind to.</p>
+      <pre class="code-hl">semantic_model:
   - name: retail_sales
     description: Sales analytics model for retail operations
     ai_context:
@@ -140,7 +158,7 @@ GROUP BY ship_date:week       -- explicit time dimension with grain</pre>
 
       <h2 id="database-schema">Database schema</h2>
       <p>An in-browser DuckDB-WASM instance loaded with ~200 rows of sample sales data spanning January 2025 through April 2026.</p>
-      <pre class="reference-code">CREATE TABLE orders (
+      <pre class="code-hl">CREATE TABLE orders (
     order_id      INTEGER PRIMARY KEY,
     order_date    DATE NOT NULL,
     region        VARCHAR(50) NOT NULL,
