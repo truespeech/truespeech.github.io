@@ -16,7 +16,7 @@ export const IMPORTS = {
         : "https://cdn.jsdelivr.net/gh/truespeech/truespeech@v0.1.0/dist/index.js",
     osiRuntime: isDev
         ? resolve("../../../osi-runtime/dist/index.js")
-        : "https://cdn.jsdelivr.net/gh/truespeech/osi-runtime@v0.1.0/dist/index.js",
+        : "https://cdn.jsdelivr.net/gh/truespeech/osi-runtime@v0.2.0/dist/index.js",
     schema: isDev
         ? resolve("../../osi-runtime/data/schema.sql")
         : "https://cdn.jsdelivr.net/gh/truespeech/truespeech.github.io@main/osi-runtime/data/schema.sql",
