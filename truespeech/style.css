@@ -98,6 +98,162 @@ code {
   background: #ccc;
 }
 
+/* Examples panel (v0.3.0 sandbox): grouped vertical list of canned
+   queries with per-card Run + Copy actions. Shows a dirty-state alert
+   when the lexicon has drifted from its seed. */
+
+.examples-panel {
+  margin: 0 0 16px;
+}
+
+.examples-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff7e6;
+  border: 1px solid #f0c060;
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.examples-alert-msg {
+  flex: 1;
+  font-size: 13px;
+  color: #6b4500;
+  line-height: 1.4;
+}
+
+.examples-alert-reset {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b4500;
+  background: #ffe9b8;
+  border: 1px solid #d8a64a;
+  border-radius: 3px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.examples-alert-reset:hover {
+  background: #f8d98c;
+}
+
+.examples-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.examples-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.examples-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #777;
+  margin: 0 0 2px;
+}
+
+.example-card {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  padding: 10px 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.example-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.example-card-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.example-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.example-card-btn {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fff;
+  border: 1px solid #c8c8c8;
+  border-radius: 3px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.example-card-btn:hover {
+  background: #ececec;
+  border-color: #999;
+}
+
+.example-card-btn-run {
+  color: #1f4d1f;
+  background: #e8f5e8;
+  border-color: #b8d8b8;
+}
+
+.example-card-btn-run:hover {
+  background: #d8eed8;
+}
+
+.example-card-explanation {
+  margin: 6px 0 6px;
+  font-size: 12px;
+  color: #555;
+  line-height: 1.4;
+}
+
+.example-card-command {
+  margin: 0;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #2a2a2a;
+  background: #f0f0f0;
+  border: 1px solid #d8d8d8;
+  border-radius: 3px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Dirty-state visual treatment: amber tint on every card so the
+   "may not match seed" feeling carries through the whole panel, not
+   just the alert. */
+
+.examples-panel.is-dirty .example-card {
+  background: #fdf6e9;
+  border-color: #ead9b0;
+}
+
+.examples-panel.is-dirty .example-card-explanation {
+  color: #7a6438;
+}
+
+.examples-panel.is-dirty .example-card-command {
+  background: #f5ead0;
+  border-color: #d8c69a;
+}
+
 /* Lexicon panel */
 
 .lexicon-panel {
@@ -199,6 +355,25 @@ code {
   background: #ececec;
   padding: 1px 6px;
   border-radius: 3px;
+}
+
+.lexicon-entry-kind {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #fff;
+}
+
+.lexicon-entry-kind-region {
+  background: #5b8d5b;
+}
+
+.lexicon-entry-kind-boundary {
+  background: #8a6d3b;
 }
 
 .lexicon-entry-desc {
@@ -362,6 +537,45 @@ code {
   color: #a86b00;
 }
 
+/* v0.3.0 boundary additions: red for rows whose own interval straddles
+   a boundary cut (the value mixes regimes); informational footer for
+   queries that fall entirely behind a boundary. */
+
+.repl-error-cell {
+  color: #c92a2a;
+  font-weight: 600;
+}
+
+.repl-historical {
+  color: #5e5e8a;
+  background: #f3f3f8;
+  border-left: 3px solid #b0b0c0;
+  padding: 6px 10px;
+  margin-top: 6px;
+  border-radius: 0 3px 3px 0;
+}
+
+/* Regime sub-rows on boundary entries in the lexicon panel. */
+
+.lexicon-entry-regime {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.lexicon-entry-regime-tag {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #666;
+  background: #ececec;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
 /* Connector between panels */
 
 .repl-connector {
@@ -427,6 +641,26 @@ code {
 .reference h3 + p {
   color: #444;
   margin: 0 0 12px;
+}
+
+.trigger-matrix {
+  border-collapse: collapse;
+  margin: 12px 0 16px;
+  font-size: 14px;
+  color: #2a2a2a;
+}
+
+.trigger-matrix th,
+.trigger-matrix td {
+  border: 1px solid #d0d0d0;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.trigger-matrix th {
+  background: #ececec;
+  font-weight: 600;
 }
 
 pre.code-hl {
