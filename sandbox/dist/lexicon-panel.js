@@ -61,8 +61,11 @@ function renderEntry(entry, opts, refresh) {
     row.className = `lexicon-entry lexicon-entry-${entry.kind}`;
     const main = document.createElement("div");
     main.className = "lexicon-entry-main";
+    // Shared kind-tag styling: same pill class used in notebook cells,
+    // so a "boundary" tag in the lexicon looks identical to a "boundary"
+    // tag in a reconciliation block.
     const kindBadge = document.createElement("span");
-    kindBadge.className = `lexicon-entry-kind lexicon-entry-kind-${entry.kind}`;
+    kindBadge.className = `kind-tag kind-${entry.kind}`;
     kindBadge.textContent = entry.kind;
     main.appendChild(kindBadge);
     const name = document.createElement("span");
@@ -96,14 +99,8 @@ function renderEntry(entry, opts, refresh) {
         body.appendChild(desc);
     }
     else {
-        const before = document.createElement("div");
-        before.className = "lexicon-entry-desc lexicon-entry-regime";
-        before.innerHTML = `<span class="lexicon-entry-regime-tag">before · ${escape(entry.before.label)}</span> "${escape(entry.before.description)}"`;
-        body.appendChild(before);
-        const after = document.createElement("div");
-        after.className = "lexicon-entry-desc lexicon-entry-regime";
-        after.innerHTML = `<span class="lexicon-entry-regime-tag">after · ${escape(entry.after.label)}</span> "${escape(entry.after.description)}"`;
-        body.appendChild(after);
+        body.appendChild(renderRegimeRow("before", entry.before));
+        body.appendChild(renderRegimeRow("after", entry.after));
     }
     const del = document.createElement("button");
     del.className = "lexicon-entry-delete";
@@ -127,14 +124,19 @@ function renderConstraint(c) {
 function renderScalar(v) {
     return typeof v === "string" ? `'${v}'` : String(v);
 }
-// Minimal HTML escape — the description and label strings come straight
-// from user-authored REGISTER statements and are interpolated into
-// innerHTML to support the regime-tag span. Stay defensive even though
-// the source is local-only.
-function escape(s) {
-    return s
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+// Render one regime row (before/after) with the shared .regime-tag
+// pill + prose. DOM-built so the user-authored label/description
+// strings never go through innerHTML.
+function renderRegimeRow(side, regime) {
+    const row = document.createElement("div");
+    row.className = "regime";
+    const tag = document.createElement("span");
+    tag.className = "regime-tag";
+    tag.textContent = `${side} · ${regime.label}`;
+    row.appendChild(tag);
+    const desc = document.createElement("span");
+    desc.className = "regime-desc";
+    desc.textContent = regime.description;
+    row.appendChild(desc);
+    return row;
 }

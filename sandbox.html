@@ -15,9 +15,22 @@
       <p>Type a statement into the top panel. Use <code>compute</code> to run a metric query, <code>register</code> to add a lexicon entry (a <a href="#regions">region</a> or a <a href="#boundaries">boundary</a>), or <code>check</code> to look up what the lexicon knows about a slice. The runtime parses, validates against the semantic model, generates SQL where needed, and executes against an in-browser DuckDB. Lexicon entries are reconciled against every <code>compute</code> automatically — per-row, so the cells that are actually affected get flagged inline. Errors are reported with Rust-style caret diagnostics. See the <a href="#regions">language reference</a> below.</p>
       <p><a href="https://github.com/truespeech/truespeech">View source on GitHub</a> · Pinned to <code>truespeech@v0.3.0</code> · The original <a href="truespeech.html">v0.1.0 sandbox</a> remains untouched · Part of the <a href="/">truespeech</a> project</p>
     </div>
-    <div id="demo"></div>
+    <nav class="section-nav" aria-label="Sandbox sections">
+      <a href="#try-it" data-nav-link>Try it</a>
+      <a href="#learn-it" data-nav-link>Learn it</a>
+      <a href="#inspect-it" data-nav-link>Inspect it</a>
+    </nav>
 
-    <div class="reference">
+    <section id="try-it" class="page-section" data-nav-section>
+      <h2 class="section-heading">Try it</h2>
+      <p class="section-lede">Browse the seed lexicon, run canned queries against it, or type your own. Results appear in the notebook below as you go.</p>
+      <div id="demo"></div>
+    </section>
+
+    <section id="learn-it" class="page-section reference" data-nav-section>
+      <h2 class="section-heading">Learn it</h2>
+      <p class="section-lede">The full language reference — every construct, its grammar, and the trigger semantics that produce what you see in the notebook.</p>
+
       <h2 id="regions">Regions</h2>
       <p>A region is a contiguous slice of your data — a time interval plus optional categorical constraints — over which one or more metrics are affected. The region syntax is also used by <code>compute</code> and <code>check</code> to address a slice.</p>
       <pre class="code-hl"><span class="cmt"># grammar</span>
@@ -102,6 +115,12 @@
       <p>Looks up matching lexicon entries for a region — no database hit, no metric computation. Useful for asking <em>"what do we know about this slice of the data?"</em> without pulling the numbers. Returns both region overlaps and boundary crossings.</p>
       <pre class="code-hl"><span class="kw">check</span> &lt;metric&gt;
   <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]</pre>
+
+    </section>
+
+    <section id="inspect-it" class="page-section reference" data-nav-section>
+      <h2 class="section-heading">Inspect it</h2>
+      <p class="section-lede">The supporting context — the semantic model the runtime queries against, and the schema of the in-browser DuckDB the queries hit.</p>
 
       <h2 id="semantic-model">Semantic model</h2>
       <p>The semantic model the runtime queries against. It defines two metrics (<code>total_sales</code> and <code>average_order_value</code>) and three dimensions (<code>order_date</code>, <code>region</code>, <code>product_tier</code>) over a single <code>orders</code> dataset. <code>order_date</code> is marked as the primary time dimension — that's what the bare-grain <code>group by month</code> and the calendar-literal forms in <code>over</code> bind to.</p>
@@ -199,8 +218,34 @@
     product_tier  VARCHAR(20) NOT NULL,
     amount        DECIMAL(10, 2) NOT NULL
 );</pre>
-    </div>
+    </section>
   </div>
   <script type="module" src="sandbox/dist/main.js"></script>
+  <script>
+    // Scroll-spy: highlight the nav link for whichever section is
+    // currently in view. rootMargin shrinks the intersection box so a
+    // section has to be roughly screen-center to count as "active",
+    // which keeps the highlight from flickering when section borders
+    // cross the viewport edges.
+    (function () {
+      const sections = document.querySelectorAll("section[data-nav-section]");
+      const links = document.querySelectorAll(".section-nav a[data-nav-link]");
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const id = entry.target.id;
+            links.forEach((l) => l.classList.remove("active"));
+            const link = document.querySelector(
+              `.section-nav a[data-nav-link][href="#${id}"]`
+            );
+            if (link) link.classList.add("active");
+          }
+        },
+        { rootMargin: "-30% 0px -60% 0px" }
+      );
+      sections.forEach((s) => observer.observe(s));
+    })();
+  </script>
 </body>
 </html>

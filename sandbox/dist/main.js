@@ -1,21 +1,21 @@
-// True Speech v0.3.0 sandbox — wires the runtime to two REPL panels
-// (TS top, SQL bottom) over a shared DuckDB instance, with an in-memory
-// lexicon rendered as a panel above.
+// True Speech v0.3.0 sandbox — wires the runtime to a notebook surface
+// over an in-browser DuckDB, with a lexicon panel and grouped canned
+// queries above.
 //
-// On every TS submit, parse → validate → execute, then dispatch on the
-// statement kind: COMPUTE renders SQL + results (with per-row
-// reconciliation matches and historical notes), REGISTER appends to the
-// lexicon and refreshes the panel, CHECK lists matching entries.
+// On every TS submit (typed into the notebook or invoked via the
+// examples panel's Run button), parse → validate → execute, then
+// dispatch on the statement kind and append a structured HTML cell to
+// the notebook. Each cell carries the input source, the rendered
+// output, and (for COMPUTE) a collapsible SQL inspector.
 //
-// v0.3.0 surface highlights:
+// v0.3.0 runtime surface in use:
 //  - Boundary entries carry BEFORE/AFTER regime descriptions
-//  - ComputeResult.decorations carries `severity` per row (warn / error)
-//  - BoundaryMatch carries a per-row `side` (before / after / straddles)
-//  - ComputeResult.historicalNotes — emitted when a query falls entirely
-//    behind a boundary; rendered as an informational footer.
+//  - ComputeResult.decorations carries per-row `severity` (warn/error)
+//  - BoundaryMatch carries per-row `side` (before/after/straddles)
+//  - ComputeResult.historicalNotes for entirely-pre-cut queries
 import { IMPORTS } from "./config.js";
 import { initDatabase, query as dbQuery } from "./db.js";
-import { createRepl, createConnector } from "./repl.js";
+import { createNotebook } from "./notebook.js";
 import { createLexiconPanel } from "./lexicon-panel.js";
 import { createExamplesPanel } from "./examples-panel.js";
 // In-memory LexiconAdapter with delete/reset extensions for the panel.
@@ -40,10 +40,6 @@ class MemoryLexicon {
     reset() {
         this.entries = this.seed.map(cloneEntry);
     }
-    // True iff the lexicon's current entries differ from the snapshotted
-    // seed. Used by the examples panel to surface a "lexicon modified"
-    // alert so canned-query explanations don't silently mislead.
-    //
     // Both sides are normalized through cloneEntry before serializing —
     // without normalization, the runtime's construction-order of the
     // entry object differs from cloneEntry's, and JSON.stringify produces
@@ -136,8 +132,6 @@ async function main() {
         }
         lexicon.snapshotSeed();
         loadingEl.remove();
-        // Forward-declared so the panels' callbacks can refresh each other
-        // without a circular construction.
         function syncDependentPanels() {
             lexiconPanel.refresh();
             examplesPanel.refresh();
@@ -154,16 +148,9 @@ async function main() {
             },
             renderRegion: tsModule.renderRegion,
         });
-        const tsRepl = createRepl({
-            prompt: "ts> ",
-            label: "True Speech",
-            onSubmit: (input) => handleTsCommand(input, ts, tsModule, tsRepl, dbRepl, connector, syncDependentPanels),
-        });
-        const connector = createConnector();
-        const dbRepl = createRepl({
-            prompt: "sql> ",
-            label: "DuckDB",
-            onSubmit: (input) => handleSqlCommand(input, dbRepl),
+        const notebook = createNotebook({
+            placeholder: "Enter a COMPUTE, REGISTER, or CHECK statement…",
+            onSubmit: (source) => handleSubmit(source, ts, tsModule, notebook, syncDependentPanels),
         });
         const exampleGroups = [
             {
@@ -259,22 +246,18 @@ async function main() {
                     await navigator.clipboard.writeText(command);
                 }
                 catch {
-                    // Clipboard API can fail in some sandboxed iframes; fall back
-                    // to selecting the command text so the user can copy manually.
                     console.warn("Clipboard write failed; user must copy manually.");
                 }
             },
             onRun: (command) => {
-                tsRepl.element.scrollIntoView({ behavior: "smooth", block: "start" });
-                tsRepl.submit(command);
+                notebook.element.scrollIntoView({ behavior: "smooth", block: "start" });
+                notebook.submit(command);
             },
         });
         container.appendChild(lexiconPanel.element);
         container.appendChild(examplesPanel.element);
-        container.appendChild(tsRepl.element);
-        container.appendChild(connector.element);
-        container.appendChild(dbRepl.element);
-        tsRepl.focus();
+        container.appendChild(notebook.element);
+        notebook.focus();
     }
     catch (err) {
         loadingEl.textContent = `Failed to initialize: ${err instanceof Error ? err.message : String(err)}`;
@@ -282,78 +265,163 @@ async function main() {
         console.error("Initialization error:", err);
     }
 }
-async function handleTsCommand(input, ts, tsModule, tsRepl, dbRepl, connector, syncDependentPanels) {
-    const trimmed = input.trim();
+async function handleSubmit(source, ts, tsModule, notebook, syncDependentPanels) {
+    const trimmed = source.trim();
     if (trimmed.length === 0)
         return;
     const { ast, errors: parseErrors } = ts.parse(trimmed);
     if (parseErrors.length > 0) {
-        renderErrorList(parseErrors, trimmed, tsModule.renderError, tsRepl);
+        notebook.addCell(renderErrorCell(trimmed, parseErrors, tsModule));
         return;
     }
     if (!ast) {
-        tsRepl.appendError("Empty input");
+        notebook.addCell(renderErrorCell(trimmed, [{ message: "Empty input" }], tsModule));
         return;
     }
     const { errors: validateErrors } = ts.validate(ast);
     if (validateErrors.length > 0) {
-        renderErrorList(validateErrors, trimmed, tsModule.renderError, tsRepl);
+        notebook.addCell(renderErrorCell(trimmed, validateErrors, tsModule));
         return;
     }
     try {
         const result = await ts.execute(trimmed);
         switch (result.statement) {
             case "compute":
-                await renderCompute(result, tsRepl, dbRepl, connector, tsModule);
+                notebook.addCell(renderComputeCell(trimmed, result, tsModule));
                 break;
             case "register":
-                renderRegister(result, tsRepl);
+                notebook.addCell(renderRegisterCell(trimmed, result));
                 syncDependentPanels();
                 break;
             case "check":
-                renderCheck(result, tsRepl, tsModule);
+                notebook.addCell(renderCheckCell(trimmed, result, tsModule));
                 break;
         }
     }
     catch (err) {
-        tsRepl.appendError(err instanceof Error ? err.message : String(err));
+        notebook.addCell(renderErrorCell(trimmed, [{ message: err instanceof Error ? err.message : String(err) }], tsModule));
     }
 }
-async function renderCompute(result, tsRepl, dbRepl, connector, tsModule) {
-    tsRepl.appendSQL(result.sql);
-    await connector.flashDown();
-    dbRepl.appendOutput(`ts> ${result.sql}`, "repl-echo");
-    dbRepl.appendTable(result.results.columns, result.results.rows);
-    await new Promise((r) => setTimeout(r, 250));
-    await connector.flashUp();
-    const tsRows = formatTimeBucketColumns(result, tsModule.formatTimeBucket);
-    const replDecorations = mapDecorations(result.decorations, tsModule.renderRegion);
-    await tsRepl.appendTable(result.results.columns, tsRows, {
-        animate: true,
-        decorations: replDecorations,
-    });
+// ===========================================================================
+// Cell renderers — each builds an HTMLElement for a notebook cell.
+// ===========================================================================
+function renderCellShell(source, kind) {
+    const cell = document.createElement("article");
+    cell.className = `nb-cell nb-cell-${kind}`;
+    const input = document.createElement("div");
+    input.className = "nb-cell-input";
+    const prompt = document.createElement("span");
+    prompt.className = "nb-cell-prompt";
+    prompt.textContent = "ts>";
+    input.appendChild(prompt);
+    const sourceEl = document.createElement("pre");
+    sourceEl.className = "nb-cell-source";
+    sourceEl.textContent = source;
+    input.appendChild(sourceEl);
+    cell.appendChild(input);
+    const output = document.createElement("div");
+    output.className = "nb-cell-output";
+    cell.appendChild(output);
+    return { cell, output };
+}
+function renderComputeCell(source, result, tsModule) {
+    const { cell, output } = renderCellShell(source, "compute");
+    // Primary result table.
+    output.appendChild(renderResultTable(result, tsModule));
+    // Reconciliation block (per-entry detail).
     if (result.reconciliation.length > 0) {
-        tsRepl.appendOutput(formatReconciliationFooter(result.reconciliation), "repl-reconciliation");
+        output.appendChild(renderReconciliationBlock(result.reconciliation));
     }
+    // Historical notes (entirely-pre-cut queries).
     for (const note of result.historicalNotes) {
-        tsRepl.appendOutput(formatHistoricalNote(note), "repl-historical");
+        output.appendChild(renderHistoricalBlock(note));
     }
+    // Generated SQL, collapsed by default.
+    output.appendChild(renderSqlDetails(result.sql));
+    return cell;
 }
-// Map runtime decorations to the REPL's {highlight, note} shape.
-// Region match  → ⚠ <name> · <overlap>
-// Boundary side → ┃ <name> · <regime label>            (warn rows)
-//                 ✗ <name> · straddles cut at <date>   (error rows)
-function mapDecorations(runtimeDecs, renderRegion) {
-    return runtimeDecs.map((d) => {
-        if (!d.matches || d.matches.length === 0)
-            return undefined;
-        const note = d.matches.map((m) => formatRowMatch(m, renderRegion)).join("; ");
-        return { highlight: d.severity ?? "warn", note };
-    });
+function renderResultTable(result, tsModule) {
+    const groupBys = result.semanticQuery.groupBy ?? [];
+    const decorations = result.decorations;
+    const hasNotes = decorations.some((d) => d.matches.length > 0);
+    const columns = hasNotes ? [...result.results.columns, "note"] : result.results.columns;
+    const grainByCol = new Map();
+    for (let i = 0; i < groupBys.length; i++) {
+        const g = groupBys[i].grain;
+        if (g)
+            grainByCol.set(i, g);
+    }
+    const table = document.createElement("table");
+    table.className = "nb-result-table";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const col of columns) {
+        const th = document.createElement("th");
+        th.textContent = col;
+        headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    for (let i = 0; i < result.results.rows.length; i++) {
+        const row = result.results.rows[i];
+        const decoration = decorations[i];
+        const tr = document.createElement("tr");
+        tr.className = "nb-row";
+        if (decoration.severity) {
+            tr.classList.add(`nb-row-${decoration.severity}`);
+        }
+        // The metric value is the last data column (i.e. not a group-by).
+        const metricColIdx = result.results.columns.length - 1;
+        for (let j = 0; j < result.results.columns.length; j++) {
+            const td = document.createElement("td");
+            const cellValue = formatCellValue(row[j], grainByCol.get(j), tsModule);
+            td.textContent = cellValue;
+            if (j === metricColIdx && decoration.severity) {
+                td.classList.add(`nb-cell-value`);
+            }
+            tr.appendChild(td);
+        }
+        if (hasNotes) {
+            const noteTd = document.createElement("td");
+            noteTd.className = "nb-cell-note";
+            if (decoration.matches.length > 0) {
+                noteTd.textContent = decoration.matches
+                    .map((m) => formatRowMatchNote(m, tsModule))
+                    .join("; ");
+            }
+            tr.appendChild(noteTd);
+        }
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    // Wrap so the row-count caption sits below the table.
+    const wrap = document.createElement("div");
+    wrap.className = "nb-result-table-wrap";
+    wrap.appendChild(table);
+    const caption = document.createElement("div");
+    caption.className = "nb-result-caption";
+    caption.textContent = `${result.results.rows.length} row${result.results.rows.length === 1 ? "" : "s"}`;
+    wrap.appendChild(caption);
+    return wrap;
 }
-function formatRowMatch(m, renderRegion) {
+function formatCellValue(val, grain, tsModule) {
+    if (val === null || val === undefined)
+        return "NULL";
+    if (grain && typeof val === "string") {
+        const iso = val.slice(0, 10);
+        return tsModule.formatTimeBucket(iso, grain);
+    }
+    if (typeof val === "number") {
+        if (Number.isInteger(val))
+            return val.toString();
+        return val.toFixed(2);
+    }
+    return String(val);
+}
+function formatRowMatchNote(m, tsModule) {
     if (m.kind === "region") {
-        return `⚠ ${m.entry.name} · ${renderRegion(m.overlap)}`;
+        return `⚠ ${m.entry.name} · ${tsModule.renderRegion(m.overlap)}`;
     }
     if (m.side === "straddles") {
         return `✗ ${m.entry.name} · straddles cut at ${m.crossedAt}`;
@@ -361,105 +429,210 @@ function formatRowMatch(m, renderRegion) {
     const label = m.side === "before" ? m.entry.before.label : m.entry.after.label;
     return `┃ ${m.entry.name} · ${m.side}: ${label}`;
 }
-function formatTimeBucketColumns(result, formatTimeBucket) {
-    const groupBys = result.semanticQuery.groupBy ?? [];
-    const grainByCol = new Map();
-    for (let i = 0; i < groupBys.length; i++) {
-        const g = groupBys[i].grain;
-        if (g)
-            grainByCol.set(i, g);
+function renderReconciliationBlock(matches) {
+    const block = document.createElement("section");
+    block.className = "nb-reconciliation";
+    const header = document.createElement("header");
+    header.className = "nb-block-header";
+    header.textContent =
+        matches.length === 1
+            ? `Reconciliation · 1 entry matched`
+            : `Reconciliation · ${matches.length} entries matched`;
+    block.appendChild(header);
+    const list = document.createElement("ul");
+    list.className = "nb-match-list";
+    for (const m of matches) {
+        list.appendChild(renderMatchItem(m));
     }
-    if (grainByCol.size === 0)
-        return result.results.rows;
-    return result.results.rows.map((row) => row.map((cell, i) => {
-        const grain = grainByCol.get(i);
-        if (!grain)
-            return cell;
-        if (cell == null)
-            return cell;
-        const iso = String(cell).slice(0, 10);
-        return formatTimeBucket(iso, grain);
-    }));
+    block.appendChild(list);
+    return block;
 }
-function renderRegister(result, tsRepl) {
-    const e = result.entry;
-    if (e.kind === "region") {
-        const impactCount = e.impacts.length;
-        tsRepl.appendOutput(`✓ Registered region "${e.name}" with ${impactCount} impact${impactCount === 1 ? "" : "s"}`, "repl-register");
+function renderMatchItem(m) {
+    const item = document.createElement("li");
+    item.className = `nb-match nb-match-${m.kind}`;
+    const head = document.createElement("div");
+    head.className = "nb-match-head";
+    const kindTag = document.createElement("span");
+    kindTag.className = `kind-tag kind-${m.kind}`;
+    kindTag.textContent = m.kind;
+    head.appendChild(kindTag);
+    const name = document.createElement("span");
+    name.className = "nb-match-name";
+    name.textContent = m.entry.name;
+    head.appendChild(name);
+    const meta = document.createElement("span");
+    meta.className = "nb-match-meta";
+    if (m.kind === "region") {
+        meta.textContent = m.impact.metric;
     }
     else {
-        tsRepl.appendOutput(`✓ Registered boundary "${e.name}" cut at ${e.at} (${e.metrics.length} metric${e.metrics.length === 1 ? "" : "s"}; before: "${e.before.label}", after: "${e.after.label}")`, "repl-register");
+        meta.textContent = `${m.metric} · cut at ${m.crossedAt}`;
     }
+    head.appendChild(meta);
+    item.appendChild(head);
+    if (m.kind === "region") {
+        const desc = document.createElement("p");
+        desc.className = "nb-match-desc";
+        desc.textContent = m.entry.description;
+        item.appendChild(desc);
+    }
+    else {
+        const regimes = document.createElement("div");
+        regimes.className = "regimes";
+        regimes.appendChild(renderRegime("before", m.entry.before));
+        regimes.appendChild(renderRegime("after", m.entry.after));
+        item.appendChild(regimes);
+        const change = document.createElement("p");
+        change.className = "nb-match-change";
+        change.textContent =
+            m.entry.changeDescription ??
+                `On ${m.crossedAt}, ${m.metric} shifted from "${m.entry.before.label}" to "${m.entry.after.label}".`;
+        item.appendChild(change);
+    }
+    return item;
 }
-function renderCheck(result, tsRepl, tsModule) {
+function renderRegime(side, regime) {
+    const wrap = document.createElement("div");
+    wrap.className = `regime regime-${side}`;
+    const tag = document.createElement("span");
+    tag.className = "regime-tag";
+    tag.textContent = `${side} · ${regime.label}`;
+    wrap.appendChild(tag);
+    const desc = document.createElement("span");
+    desc.className = "regime-desc";
+    desc.textContent = regime.description;
+    wrap.appendChild(desc);
+    return wrap;
+}
+function renderHistoricalBlock(note) {
+    const block = document.createElement("aside");
+    block.className = "nb-historical";
+    const header = document.createElement("header");
+    header.className = "nb-block-header nb-historical-header";
+    const title = document.createElement("span");
+    title.textContent = "ℹ Historical context";
+    header.appendChild(title);
+    const meta = document.createElement("span");
+    meta.className = "nb-block-meta";
+    meta.textContent = `${note.boundary.name} · ${note.metric}`;
+    header.appendChild(meta);
+    block.appendChild(header);
+    const lead = document.createElement("p");
+    lead.className = "nb-historical-lead";
+    lead.textContent = `These values were computed under the pre-cut regime.`;
+    block.appendChild(lead);
+    const regimes = document.createElement("div");
+    regimes.className = "regimes";
+    regimes.appendChild(renderRegime("before", note.boundary.before));
+    regimes.appendChild(renderRegime("after", note.boundary.after));
+    block.appendChild(regimes);
+    const foot = document.createElement("p");
+    foot.className = "nb-historical-foot";
+    foot.textContent = `As of ${note.boundary.at}, ${note.metric} is reported under the "${note.boundary.after.label}" regime.`;
+    block.appendChild(foot);
+    return block;
+}
+function renderSqlDetails(sql) {
+    const details = document.createElement("details");
+    details.className = "nb-sql";
+    const summary = document.createElement("summary");
+    summary.textContent = "Show generated SQL";
+    details.appendChild(summary);
+    const pre = document.createElement("pre");
+    pre.className = "nb-sql-source";
+    pre.textContent = sql;
+    details.appendChild(pre);
+    return details;
+}
+function renderRegisterCell(source, result) {
+    const { cell, output } = renderCellShell(source, "register");
+    const e = result.entry;
+    const banner = document.createElement("div");
+    banner.className = "nb-register-banner";
+    const kindTag = document.createElement("span");
+    kindTag.className = `kind-tag kind-${e.kind}`;
+    kindTag.textContent = e.kind;
+    banner.appendChild(kindTag);
+    const msg = document.createElement("span");
+    msg.className = "nb-register-msg";
+    msg.textContent = `✓ Registered ${e.kind} "${e.name}"`;
+    banner.appendChild(msg);
+    output.appendChild(banner);
+    if (e.kind === "region") {
+        const list = document.createElement("ul");
+        list.className = "nb-register-impacts";
+        for (const impact of e.impacts) {
+            const li = document.createElement("li");
+            li.textContent = `${impact.metric} over ${impact.region.timeStart} to ${impact.region.timeEnd}`;
+            list.appendChild(li);
+        }
+        output.appendChild(list);
+        const desc = document.createElement("p");
+        desc.className = "nb-register-desc";
+        desc.textContent = e.description;
+        output.appendChild(desc);
+    }
+    else {
+        const meta = document.createElement("p");
+        meta.className = "nb-register-meta";
+        meta.textContent = `Cut at ${e.at} · impacts ${e.metrics.join(", ")}`;
+        output.appendChild(meta);
+        const regimes = document.createElement("div");
+        regimes.className = "regimes";
+        regimes.appendChild(renderRegime("before", e.before));
+        regimes.appendChild(renderRegime("after", e.after));
+        output.appendChild(regimes);
+    }
+    return cell;
+}
+function renderCheckCell(source, result, tsModule) {
+    const { cell, output } = renderCellShell(source, "check");
     if (result.matches.length === 0) {
-        tsRepl.appendOutput("(no lexicon matches)", "repl-check");
-        return;
+        const empty = document.createElement("p");
+        empty.className = "nb-check-empty";
+        empty.textContent = "(no lexicon matches)";
+        output.appendChild(empty);
+        return cell;
     }
-    const header = `${result.matches.length} match${result.matches.length === 1 ? "" : "es"}`;
-    tsRepl.appendOutput(`${header}\n${formatCheckMatches(result.matches, tsModule.renderRegion)}`, "repl-check");
+    const header = document.createElement("header");
+    header.className = "nb-block-header";
+    header.textContent = `${result.matches.length} match${result.matches.length === 1 ? "" : "es"}`;
+    output.appendChild(header);
+    const list = document.createElement("ul");
+    list.className = "nb-match-list";
+    for (const m of result.matches) {
+        list.appendChild(renderCheckMatchItem(m, tsModule));
+    }
+    output.appendChild(list);
+    return cell;
 }
-function formatReconciliationFooter(matches) {
-    const header = matches.length === 1
-        ? `⚠ Reconciliation: 1 lexicon entry matched this region`
-        : `⚠ Reconciliation: ${matches.length} lexicon entries matched this region`;
-    const body = matches
-        .map((m) => {
-        if (m.kind === "region") {
-            return `  • ${m.entry.name} (region · ${m.impact.metric})\n      "${m.entry.description}"`;
+function renderCheckMatchItem(m, tsModule) {
+    const item = renderMatchItem(m);
+    // Augment region matches with the overlap region — useful in CHECK
+    // since there's no row context to anchor the match.
+    if (m.kind === "region") {
+        const overlap = document.createElement("span");
+        overlap.className = "nb-match-overlap";
+        overlap.textContent = ` · ${tsModule.renderRegion(m.overlap)}`;
+        item.querySelector(".nb-match-head")?.appendChild(overlap);
+    }
+    return item;
+}
+function renderErrorCell(source, errors, tsModule) {
+    const { cell, output } = renderCellShell(source, "error");
+    for (const err of errors) {
+        const pre = document.createElement("pre");
+        pre.className = "nb-error";
+        // If the error has the shape the renderer can format, use it; else
+        // just dump the message.
+        try {
+            pre.textContent = tsModule.renderError(err, source);
         }
-        // Boundary: spell out both regime descriptions and the composed
-        // change sentence (or the WITH override, if given).
-        const change = m.entry.changeDescription ??
-            composeChangeSentence(m.entry, m.metric, m.crossedAt);
-        return (`  • ${m.entry.name} (boundary · ${m.metric} at ${m.crossedAt})\n` +
-            `      before "${m.entry.before.label}": ${m.entry.before.description}\n` +
-            `      after  "${m.entry.after.label}": ${m.entry.after.description}\n` +
-            `      ${change}`);
-    })
-        .join("\n");
-    return `${header}\n${body}`;
-}
-// Runtime-owned wording for the historical-context footer. The pre-cut
-// regime is being read; the post-cut regime is "now."
-function formatHistoricalNote(note) {
-    const b = note.boundary;
-    return (`ℹ Historical context (${b.name} · ${note.metric})\n` +
-        `  These values were computed under the pre-cut regime ("${b.before.label}"):\n` +
-        `    "${b.before.description}"\n` +
-        `  As of ${b.at}, ${note.metric} is reported under "${b.after.label}":\n` +
-        `    "${b.after.description}"`);
-}
-// Runtime-owned change-sentence composition when no WITH override.
-function composeChangeSentence(entry, metric, at) {
-    return `On ${at}, ${metric} shifted from "${entry.before.label}" to "${entry.after.label}".`;
-}
-function formatCheckMatches(matches, renderRegion) {
-    return matches
-        .map((m) => {
-        if (m.kind === "region") {
-            const region = renderRegion(m.overlap);
-            return `  • ${m.entry.name}  (region · ${m.impact.metric} · ${region})\n      "${m.entry.description}"`;
+        catch {
+            pre.textContent = err.message;
         }
-        return `  • ${m.entry.name}  (boundary · ${m.metric} at ${m.crossedAt})\n      before "${m.entry.before.label}": ${m.entry.before.description}\n      after  "${m.entry.after.label}": ${m.entry.after.description}`;
-    })
-        .join("\n");
-}
-function renderErrorList(errors, source, renderError, tsRepl) {
-    for (const e of errors) {
-        tsRepl.appendError(renderError(e, source));
+        output.appendChild(pre);
     }
-}
-async function handleSqlCommand(input, dbRepl) {
-    const trimmed = input.trim();
-    if (trimmed.length === 0)
-        return;
-    try {
-        const result = await dbQuery(trimmed);
-        dbRepl.appendTable(result.columns, result.rows);
-    }
-    catch (err) {
-        dbRepl.appendError(err instanceof Error ? err.message : String(err));
-    }
+    return cell;
 }
 main();

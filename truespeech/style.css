@@ -357,24 +357,7 @@ code {
   border-radius: 3px;
 }
 
-.lexicon-entry-kind {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 1px 6px;
-  border-radius: 3px;
-  color: #fff;
-}
-
-.lexicon-entry-kind-region {
-  background: #5b8d5b;
-}
-
-.lexicon-entry-kind-boundary {
-  background: #8a6d3b;
-}
+/* Removed: replaced by shared .kind-tag rules at the end of the file. */
 
 .lexicon-entry-desc {
   font-size: 12px;
@@ -555,26 +538,7 @@ code {
   border-radius: 0 3px 3px 0;
 }
 
-/* Regime sub-rows on boundary entries in the lexicon panel. */
-
-.lexicon-entry-regime {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
-}
-
-.lexicon-entry-regime-tag {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #666;
-  background: #ececec;
-  padding: 1px 6px;
-  border-radius: 3px;
-  white-space: nowrap;
-}
+/* Removed: replaced by shared .regime / .regime-tag rules at the end. */
 
 /* Connector between panels */
 
@@ -691,6 +655,566 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   text-align: center;
 }
 
+/* Notebook surface (v0.3.0 sandbox) — replaces the dual-REPL +
+   connector + DB console. Cells stack vertically; each carries the
+   input source, structured output, and a collapsible SQL inspector. */
+
+.notebook {
+  background: #fdfcf6;
+  border: 1px solid #d8d4c5;
+  border-radius: 6px;
+  margin: 0 0 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.notebook-cells {
+  display: flex;
+  flex-direction: column;
+}
+
+.notebook-cells:empty {
+  display: none;
+}
+
+.notebook-input {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8f6ed;
+  border-top: 1px solid #e0dcc8;
+}
+
+.notebook-cells:empty + .notebook-input {
+  border-top: none;
+}
+
+.notebook-prompt {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  color: #777;
+  padding-top: 6px;
+  user-select: none;
+}
+
+.notebook-input-field {
+  flex: 1;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 5px 8px;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  min-height: 28px;
+}
+
+.notebook-input-field:focus {
+  border-color: #c8c4b3;
+  background: #fff;
+}
+
+.notebook-run-btn {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f4d1f;
+  background: #e8f5e8;
+  border: 1px solid #b8d8b8;
+  border-radius: 3px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.notebook-run-btn:hover {
+  background: #d8eed8;
+}
+
+/* Cells */
+
+.nb-cell {
+  border-bottom: 1px solid #e8e4d4;
+  padding: 12px 14px 16px;
+}
+
+.nb-cell:last-child {
+  border-bottom: none;
+}
+
+.nb-cell-input {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.nb-cell-prompt {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  color: #777;
+  padding-top: 1px;
+  user-select: none;
+}
+
+.nb-cell-source {
+  flex: 1;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #f0ece0;
+  border: 1px solid #d8d4c5;
+  border-radius: 3px;
+  padding: 6px 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+
+.nb-cell-output {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Result tables */
+
+.nb-result-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nb-result-table {
+  border-collapse: collapse;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  color: #2a2a2a;
+}
+
+.nb-result-table th,
+.nb-result-table td {
+  border: 1px solid #d8d4c5;
+  padding: 5px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.nb-result-table th {
+  background: #ece8d8;
+  font-weight: 600;
+  color: #444;
+}
+
+.nb-result-table tbody tr {
+  background: #fdfcf6;
+}
+
+.nb-row-warn .nb-cell-value,
+.nb-row-warn .nb-cell-note {
+  color: #a86b00;
+  background: #fff7e6;
+}
+
+.nb-row-error .nb-cell-value,
+.nb-row-error .nb-cell-note {
+  color: #c92a2a;
+  background: #fdecec;
+  font-weight: 600;
+}
+
+.nb-cell-note {
+  max-width: 360px;
+  white-space: pre-wrap;
+}
+
+.nb-result-caption {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  color: #888;
+  padding: 0 2px;
+}
+
+/* Block headers for reconciliation / check / historical */
+
+.nb-block-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b4500;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.nb-block-meta {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #888;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Reconciliation block */
+
+.nb-reconciliation {
+  background: #fff7e6;
+  border: 1px solid #f0c060;
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nb-reconciliation .nb-block-header {
+  color: #6b4500;
+}
+
+.nb-match-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nb-match {
+  background: #fffcf2;
+  border: 1px solid #ead9b0;
+  border-radius: 3px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nb-match-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Removed: replaced by shared .kind-tag rules at the end of the file. */
+
+.nb-match-name {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.nb-match-meta {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #555;
+}
+
+.nb-match-overlap {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #777;
+}
+
+.nb-match-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #444;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.nb-match-change {
+  margin: 0;
+  font-size: 12px;
+  color: #6b4500;
+  font-style: italic;
+}
+
+/* Removed: replaced by shared .regimes / .regime / .regime-tag rules. */
+
+/* Historical block */
+
+.nb-historical {
+  background: #f3f3f8;
+  border: 1px solid #c8c8d8;
+  border-left: 3px solid #b0b0c0;
+  border-radius: 0 4px 4px 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nb-historical-header {
+  color: #4a4a78;
+}
+
+.nb-historical-lead,
+.nb-historical-foot {
+  margin: 0;
+  font-size: 13px;
+  color: #4a4a78;
+  line-height: 1.45;
+}
+
+/* SQL details */
+
+.nb-sql {
+  background: #f5f3e8;
+  border: 1px solid #ddd6c0;
+  border-radius: 3px;
+  padding: 4px 10px;
+}
+
+.nb-sql summary {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+}
+
+.nb-sql summary:hover {
+  color: #555;
+}
+
+.nb-sql-source {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #5b6770;
+  margin: 4px 0 6px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+/* Register cell */
+
+.nb-register-banner {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.nb-register-msg {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f4d1f;
+}
+
+.nb-register-impacts {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nb-register-impacts li {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #555;
+}
+
+.nb-register-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #555;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.nb-register-meta {
+  margin: 0;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #555;
+}
+
+/* Check empty state */
+
+.nb-check-empty {
+  margin: 0;
+  font-style: italic;
+  color: #888;
+  font-size: 13px;
+}
+
+/* Error cell */
+
+.nb-cell-error .nb-cell-source {
+  background: #fdecec;
+  border-color: #f0b0b0;
+}
+
+.nb-error {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #c92a2a;
+  background: #fdecec;
+  border: 1px solid #f0b0b0;
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+/* Sticky in-page navigation (v0.3.0 sandbox) — three sections:
+   Try it / Learn it / Inspect it. The nav pins to the top of the
+   viewport once the user scrolls past the intro; the active link is
+   driven by an IntersectionObserver in sandbox.html. */
+
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  background: #f8f6ed;
+  border-bottom: 1px solid #d8d4c5;
+  padding: 8px 0;
+  margin: 24px 0 0;
+}
+
+.section-nav a {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5e5e5e;
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.section-nav a:hover {
+  color: #1a1a1a;
+  background: #ece8d8;
+}
+
+.section-nav a.active {
+  color: #1a1a1a;
+  background: #ece8d8;
+  border-color: #c8c4b3;
+}
+
+/* Page-section containers — shared spacing and scroll offset so that
+   anchor jumps land below the sticky nav, not behind it. */
+
+.page-section {
+  scroll-margin-top: 52px;
+  padding-top: 32px;
+}
+
+/* Bumped specificity (`.page-section .section-heading`) to win over the
+   pre-existing `.reference h2` rule, which would otherwise downsize
+   the section title to 22px. */
+.page-section .section-heading {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  color: #1a1a1a;
+}
+
+.section-lede {
+  font-size: 15px;
+  color: #555;
+  margin: 0 0 24px;
+  max-width: 760px;
+  line-height: 1.5;
+}
+
+/* Override the existing .reference top-spacing now that sections own
+   their own padding. The two reference sections (Learn it / Inspect
+   it) share the .reference class for typography but don't need the
+   big top-margin or border anymore. */
+
+.page-section.reference {
+  max-width: 760px;
+  margin-top: 0;
+  border-top: none;
+  padding-top: 32px;
+}
+
+.page-section.reference + .page-section.reference {
+  margin-top: 48px;
+}
+
+/* Shared visual conventions — used across the lexicon panel,
+   notebook cells, and any other surface that surfaces an entry kind
+   or a regime description. Defining these once instead of per-panel
+   keeps the visual language consistent: a "boundary" tag in the
+   lexicon panel looks identical to one in a reconciliation block. */
+
+.kind-tag {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.kind-region {
+  background: #5b8d5b;
+}
+
+.kind-boundary {
+  background: #8a6d3b;
+}
+
+.regimes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.regime {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.45;
+}
+
+.regime-tag {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #666;
+  background: #ececec;
+  padding: 2px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.regime-desc {
+  flex: 1;
+}
+
 /* Responsive */
 
 @media (max-width: 640px) {
@@ -700,5 +1224,14 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 
   .repl-output {
     height: 240px;
+  }
+
+  .nb-cell-note {
+    max-width: 240px;
+  }
+
+  .regime {
+    flex-direction: column;
+    gap: 2px;
   }
 }
