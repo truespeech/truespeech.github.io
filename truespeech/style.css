@@ -1235,3 +1235,381 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
     gap: 2px;
   }
 }
+
+/* ==========================================================================
+   reference.html — language reference page
+   ==========================================================================
+   All selectors are scoped under .ref-page (or have a .ref-/ref- prefix) so
+   they don't collide with the sandbox/notebook rules above. The page is a
+   sticky-TOC left column + scrolling content right column on desktop; on
+   narrower viewports the TOC collapses behind a button at the top.
+*/
+
+.ref-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 24px 96px;
+}
+
+.ref-header {
+  max-width: 880px;
+  margin: 0 0 28px;
+}
+
+.ref-header .kicker {
+  margin: 0 0 12px;
+}
+
+.ref-title {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin: 0 0 12px;
+}
+
+.ref-sub {
+  font-size: 16px;
+  color: #555;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ref-sub code {
+  font-size: 0.9em;
+}
+
+/* Mobile-only TOC toggle. Hidden on desktop via the media query below. */
+
+.ref-toc-toggle {
+  display: none;
+  margin: 0 0 16px;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #ece8d8;
+  border: 1px solid #c8c4b3;
+  border-radius: 3px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.ref-toc-toggle:hover {
+  background: #ddd9c4;
+}
+
+/* Layout: TOC + content. CSS grid keeps the columns aligned without
+   having to play with absolute positioning, and lets the right column
+   own its own scrolling. */
+
+.ref-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+.ref-toc {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.45;
+  border-right: 1px solid #e0dcc8;
+  padding-right: 12px;
+}
+
+.ref-toc-list,
+.ref-toc-list ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ref-toc-list > li {
+  margin: 0 0 10px;
+}
+
+.ref-toc-list ol {
+  padding-left: 12px;
+  margin: 4px 0 0;
+  border-left: 1px solid #ece8d8;
+}
+
+.ref-toc-list ol > li {
+  margin: 2px 0;
+}
+
+.ref-toc a {
+  display: block;
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: #555;
+  text-decoration: none;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ref-toc-list > li > a {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.ref-toc a:hover {
+  background: #f4f0e0;
+  color: #1a1a1a;
+}
+
+.ref-toc a.active {
+  background: #ece8d8;
+  color: #1a1a1a;
+  border-color: #c8c4b3;
+}
+
+/* Content column. min-width: 0 on the grid item prevents <pre> blocks
+   from blowing out the column width when they overflow horizontally. */
+
+.ref-content {
+  min-width: 0;
+  max-width: 800px;
+}
+
+.ref-content section {
+  margin: 0 0 36px;
+  scroll-margin-top: 24px;
+}
+
+.ref-content section section {
+  margin: 24px 0 0;
+}
+
+.ref-content h2 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 8px 0 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e8e4d4;
+  color: #1a1a1a;
+}
+
+.ref-content h3 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 28px 0 10px;
+  color: #1a1a1a;
+}
+
+.ref-content h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  color: #333;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ref-content p {
+  margin: 0 0 12px;
+  color: #2a2a2a;
+}
+
+.ref-content ul {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.ref-content ul li {
+  margin: 4px 0;
+}
+
+.ref-content a {
+  color: #005cc5;
+  text-decoration: none;
+}
+
+.ref-content a:hover {
+  text-decoration: underline;
+}
+
+/* Bottom-margin on code blocks inside the reference content — slightly
+   tighter than the global pre.code-hl above. */
+.ref-content pre.code-hl {
+  margin: 10px 0 16px;
+}
+
+/* Reference tables — slightly denser than the trigger-matrix in the
+   sandbox, used for the time-mini-language and error-codes grids. */
+
+.ref-grid {
+  border-collapse: collapse;
+  margin: 12px 0 18px;
+  font-size: 14px;
+  color: #2a2a2a;
+  width: 100%;
+}
+
+.ref-grid th,
+.ref-grid td {
+  border: 1px solid #d8d4c5;
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ref-grid th {
+  background: #ece8d8;
+  font-weight: 600;
+  color: #444;
+}
+
+.ref-grid td code {
+  background: #f0ece0;
+}
+
+/* Informational aside — used to flag the schema-vs-illustrative-names
+   caveat at the top of Statements, and any future "you should know this
+   before reading on" note. Distinct from .ref-grid; visually softer. */
+
+.ref-note {
+  background: #f3f3f8;
+  border-left: 3px solid #b0b0c0;
+  border-radius: 0 4px 4px 0;
+  padding: 10px 14px;
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #4a4a78;
+  line-height: 1.5;
+}
+
+.ref-note code {
+  background: #e6e6ee;
+}
+
+/* Search bar + dropdown. Positioned at the top of the content column. */
+
+.ref-search {
+  position: relative;
+  margin: 0 0 28px;
+}
+
+.ref-search-input {
+  width: 100%;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #fdfcf6;
+  border: 1px solid #c8c4b3;
+  border-radius: 4px;
+  padding: 9px 14px;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ref-search-input:focus {
+  border-color: #8a805a;
+  background: #fff;
+}
+
+.ref-search-input::placeholder {
+  color: #888;
+}
+
+.ref-search-results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #c8c4b3;
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.ref-search-hit {
+  display: block;
+  padding: 9px 14px;
+  color: #1a1a1a;
+  text-decoration: none;
+  border-bottom: 1px solid #f0ece0;
+  transition: background 0.1s ease;
+}
+
+.ref-search-hit:last-child {
+  border-bottom: none;
+}
+
+.ref-search-hit:hover {
+  background: #f8f6ed;
+}
+
+.ref-search-hit-heading {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.ref-search-hit-kw {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.ref-search-empty {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+}
+
+/* The .search-keywords blob is hidden by the [hidden] attribute already;
+   reinforce here in case a downstream stylesheet ever overrides it. */
+.search-keywords[hidden] {
+  display: none !important;
+}
+
+/* Responsive: collapse the TOC behind a button below 900px wide. */
+
+@media (max-width: 900px) {
+  .ref-page {
+    padding: 20px 16px 64px;
+  }
+
+  .ref-toc-toggle {
+    display: inline-block;
+  }
+
+  .ref-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .ref-toc {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    border-right: none;
+    border: 1px solid #e0dcc8;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 0 0 28px;
+    background: #fdfcf6;
+    display: none;
+  }
+
+  .ref-toc.ref-toc-open {
+    display: block;
+  }
+
+  .ref-content {
+    max-width: none;
+  }
+}

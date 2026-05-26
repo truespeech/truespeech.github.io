@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>truespeech Reference · v0.3.0</title>
+  <link rel="stylesheet" href="truespeech/style.css">
+</head>
+<body>
+  <div class="ref-page">
+    <header class="ref-header">
+      <p class="kicker">True Speech · v0.3.0 · Reference</p>
+      <h1 class="ref-title">truespeech Language Reference</h1>
+      <p class="ref-sub">The canonical reference for truespeech v0.3.0: syntax, semantics, and the runtime API. Pinned to <code>truespeech@v0.3.0</code>. See also: <a href="sandbox.html">interactive sandbox</a> · <a href="https://github.com/truespeech/truespeech">source</a>.</p>
+    </header>
+
+    <button class="ref-toc-toggle" id="ref-toc-toggle" aria-controls="ref-toc" aria-expanded="false">Contents</button>
+
+    <div class="ref-layout">
+      <aside class="ref-toc" id="ref-toc" aria-label="Table of contents">
+        <nav>
+          <ol class="ref-toc-list">
+            <li><a href="#overview" data-toc>Overview</a></li>
+            <li><a href="#statements" data-toc>Statements</a>
+              <ol>
+                <li><a href="#compute" data-toc>COMPUTE</a></li>
+                <li><a href="#register-region" data-toc>REGISTER region</a></li>
+                <li><a href="#register-boundary" data-toc>REGISTER boundary</a></li>
+                <li><a href="#check" data-toc>CHECK</a></li>
+              </ol>
+            </li>
+            <li><a href="#over-clause" data-toc>The OVER clause</a>
+              <ol>
+                <li><a href="#time-mini-language" data-toc>Time mini-language</a></li>
+                <li><a href="#additional-constraints" data-toc>Additional constraints</a></li>
+              </ol>
+            </li>
+            <li><a href="#lexicon" data-toc>The Lexicon</a>
+              <ol>
+                <li><a href="#regions" data-toc>Regions</a></li>
+                <li><a href="#boundaries" data-toc>Boundaries</a></li>
+                <li><a href="#per-row-decorations" data-toc>Per-row decorations</a></li>
+                <li><a href="#reconciliation" data-toc>Reconciliation &amp; historical notes</a></li>
+              </ol>
+            </li>
+            <li><a href="#runtime-api" data-toc>Runtime API</a>
+              <ol>
+                <li><a href="#truespeech-class" data-toc>TrueSpeech class</a></li>
+                <li><a href="#adapter-interfaces" data-toc>Adapter interfaces</a></li>
+                <li><a href="#result-types" data-toc>Result types</a></li>
+                <li><a href="#lexicon-types" data-toc>Lexicon types</a></li>
+                <li><a href="#match-types" data-toc>Match types</a></li>
+                <li><a href="#decoration-types" data-toc>Decoration types</a></li>
+                <li><a href="#region-utilities" data-toc>Region utilities</a></li>
+              </ol>
+            </li>
+            <li><a href="#errors" data-toc>Errors</a>
+              <ol>
+                <li><a href="#error-shape" data-toc>Error shape</a></li>
+                <li><a href="#error-codes" data-toc>Error codes</a></li>
+                <li><a href="#render-error" data-toc>renderError</a></li>
+                <li><a href="#execution-error" data-toc>Execution error</a></li>
+              </ol>
+            </li>
+          </ol>
+        </nav>
+      </aside>
+
+      <main class="ref-content">
+        <div class="ref-search">
+          <input
+            id="ref-search-input"
+            type="search"
+            class="ref-search-input"
+            placeholder="Search the reference…"
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="Search the reference"
+            aria-controls="ref-search-results"
+            aria-expanded="false">
+          <div class="ref-search-results" id="ref-search-results" role="listbox" hidden></div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- Overview                                                     -->
+        <!-- ============================================================ -->
+        <section id="overview" data-ref-section>
+          <span class="search-keywords" hidden>intro introduction what is truespeech stack semantic layer database analyst lexicon</span>
+          <h2>Overview</h2>
+          <p>truespeech is a small TypeScript language runtime that sits above a semantic layer (which itself sits above a database). It gives analysts two things: a precise query statement (<a href="#compute"><code>COMPUTE</code></a>) for expressing metric questions, and a curated <a href="#lexicon">lexicon</a> for annotating the data with contextual knowledge — what is anomalous, what changed when, which metric definitions differ across history. The runtime parses statements, validates them against the semantic model, generates SQL via the semantic-layer adapter, runs it through the database adapter, and reconciles the result against the lexicon — so the rows you see are flagged inline when something in the lexicon applies.</p>
+          <p>The stack: <code>database → semantic layer → truespeech</code>. The runtime is decoupled from any specific implementation of those underlayers via three <a href="#adapter-interfaces">adapter interfaces</a> (<code>SemanticLayerAdapter</code>, <code>DatabaseAdapter</code>, <code>LexiconAdapter</code>). The lexicon adapter is optional — plain <code>COMPUTE</code> works without it; <a href="#register-region"><code>REGISTER</code></a> and <a href="#check"><code>CHECK</code></a> require it.</p>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- Statements                                                   -->
+        <!-- ============================================================ -->
+        <section id="statements" data-ref-section>
+          <span class="search-keywords" hidden>statements grammar syntax compute register check</span>
+          <h2>Statements</h2>
+          <p>truespeech has three statement kinds, discriminated by the first keyword: <a href="#compute"><code>COMPUTE</code></a> for querying the data, <a href="#register-region"><code>REGISTER</code></a> for adding a lexicon entry, and <a href="#check"><code>CHECK</code></a> for looking up the lexicon. Keywords are case-insensitive; identifiers are case-sensitive.</p>
+          <p class="ref-note">Examples below use illustrative metric and dimension names chosen to make the construct concrete (<code>LTV</code>, <code>session_starts</code>, <code>ship_count</code>, <code>ship_date</code>, etc.). The <a href="sandbox.html">interactive sandbox</a> ships with a specific demo schema (<code>total_sales</code>, <code>average_order_value</code>, <code>order_count</code> over <code>region</code>, <code>product_tier</code>, <code>order_date</code>) — copying these examples verbatim into the sandbox will raise <code>unknown_metric</code>.</p>
+
+          <section id="compute" data-ref-section>
+            <span class="search-keywords" hidden>compute query metric over group by order by limit bare grain primary time</span>
+            <h3>COMPUTE</h3>
+            <p>Runs a metric query over a region of the data. The result is reconciled against the lexicon automatically — both at the query level (<code>reconciliation</code>) and per row (<code>decorations</code>).</p>
+            <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">COMPUTE</span> &lt;metric&gt;
+  <span class="kw">OVER</span> &lt;time-expr&gt; [<span class="kw">AND</span> &lt;constraint&gt;]...
+  [<span class="kw">GROUP BY</span> &lt;field&gt;[, &lt;field&gt;]...]
+  [<span class="kw">ORDER BY</span> &lt;field&gt; [<span class="kw">ASC</span>|<span class="kw">DESC</span>][, ...]]
+  [<span class="kw">LIMIT</span> &lt;n&gt;]</pre>
+            <p>v0.3.0 accepts exactly one metric per <code>COMPUTE</code>; a second metric raises <code>incompatible_metrics</code>. See <a href="#over-clause">The OVER clause</a> for the time and constraint grammar shared by all three statements.</p>
+
+            <h4 id="compute-group-by">GROUP BY</h4>
+            <p>Three group-by shapes are accepted:</p>
+            <pre class="code-hl"><span class="kw">GROUP BY</span> month                <span class="cmt">-- bare grain: primary time at month grain</span>
+<span class="kw">GROUP BY</span> region               <span class="cmt">-- categorical dimension</span>
+<span class="kw">GROUP BY</span> region, month        <span class="cmt">-- multiple</span>
+<span class="kw">GROUP BY</span> ship_date:week       <span class="cmt">-- explicit time dimension with grain</span></pre>
+            <p>Bare grain words (<code>day</code>, <code>week</code>, <code>month</code>, <code>quarter</code>, <code>year</code>) implicitly reference the metric's primary time dimension at that grain. Time dimensions in <code>GROUP BY</code> always require a grain — a bare time-dimension name (e.g. <code>GROUP BY ship_date</code>) raises <code>grain_required</code>. A grain on a non-time dimension also raises <code>grain_required</code>.</p>
+            <p>The runtime renames bare-grain result columns from the underlying semantic-layer name (e.g. <code>order_date_month</code>) back to the bare grain (<code>month</code>) so the result column matches what was written.</p>
+
+            <h4 id="compute-order-by-limit">ORDER BY / LIMIT</h4>
+            <pre class="code-hl"><span class="kw">ORDER BY</span> total_sales <span class="kw">DESC</span>, region <span class="kw">ASC</span>
+<span class="kw">LIMIT</span> 10</pre>
+            <p><code>ORDER BY</code> fields must be result columns — either a group-by field (using its bare-grain name where applicable) or the metric name. An unknown field raises <code>order_by_unknown_field</code>. <code>LIMIT</code> takes a non-negative integer literal.</p>
+
+            <h4 id="compute-example">Example</h4>
+            <pre class="code-hl"><span class="kw">COMPUTE</span> total_sales
+  <span class="kw">OVER</span> 2026-Q1 <span class="kw">AND</span> region = <span class="str">'northeast'</span>
+  <span class="kw">GROUP BY</span> month
+  <span class="kw">ORDER BY</span> month <span class="kw">ASC</span></pre>
+          </section>
+
+          <section id="register-region" data-ref-section>
+            <span class="search-keywords" hidden>register region impacting over with description multi-metric shorthand patch anomaly</span>
+            <h3>REGISTER region</h3>
+            <p>Adds a <a href="#regions">region</a> entry to the lexicon: a contiguous slice of the data — a time interval plus optional categorical constraints — over which one or more metrics are affected.</p>
+            <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">REGISTER</span> <span class="kw">region</span> &lt;name&gt;
+  <span class="kw">IMPACTING</span> &lt;metric&gt;[, &lt;metric&gt;]... <span class="kw">OVER</span> &lt;region&gt;
+  [<span class="kw">IMPACTING</span> &lt;metric&gt;[, &lt;metric&gt;]... <span class="kw">OVER</span> &lt;region&gt;]...
+  <span class="kw">WITH</span> <span class="str">"&lt;description&gt;"</span></pre>
+            <p>Each <code>IMPACTING</code> clause carries one or more affected metrics and the region (relative to <em>that</em> metric's primary time) over which they are affected. The multi-metric shorthand in a single <code>IMPACTING</code> requires the listed metrics to share a primary time dimension; if they do not, the validator raises <code>incompatible_metrics</code> and you must split into separate <code>IMPACTING</code> clauses. At least one <code>IMPACTING</code> clause and the trailing <code>WITH</code> description are required.</p>
+            <p>Descriptions are string literals — single-quoted (<code>'…'</code>) or double-quoted (<code>"…"</code>). Use double quotes for prose containing apostrophes.</p>
+            <pre class="code-hl"><span class="cmt"># single IMPACTING, multi-metric shorthand</span>
+<span class="kw">REGISTER</span> <span class="kw">region</span> bot_campaign_2026_02
+  <span class="kw">IMPACTING</span> order_count, session_starts <span class="kw">OVER</span> 2026-02-03 <span class="kw">to</span> 2026-02-04
+  <span class="kw">WITH</span> <span class="str">"Credential-stuffing campaign inflated session and order counts"</span>
+
+<span class="cmt"># multi-IMPACTING, per-metric region</span>
+<span class="kw">REGISTER</span> <span class="kw">region</span> mobile_event_drop
+  <span class="kw">IMPACTING</span> session_starts <span class="kw">OVER</span> 2025-07 <span class="kw">to</span> 2025-12
+  <span class="kw">IMPACTING</span> ship_count     <span class="kw">OVER</span> 2025-08 <span class="kw">to</span> 2026-01
+  <span class="kw">WITH</span> <span class="str">"Mobile app analytics events were not consistently fired"</span></pre>
+          </section>
+
+          <section id="register-boundary" data-ref-section>
+            <span class="search-keywords" hidden>register boundary at impacting before after with cut regime instant categorical scope definition change pricing change</span>
+            <h3>REGISTER boundary</h3>
+            <p>Adds a <a href="#boundaries">boundary</a> entry: a cut at an instant — a metric redefinition, a pricing change, a logging-pipeline switch.</p>
+            <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">REGISTER</span> <span class="kw">boundary</span> &lt;name&gt;
+  <span class="kw">AT</span> &lt;date&gt; [<span class="kw">AND</span> &lt;constraint&gt;]...
+  <span class="kw">IMPACTING</span> &lt;metric&gt;[, &lt;metric&gt;]...
+  <span class="kw">BEFORE</span> <span class="str">"&lt;short label&gt;"</span> <span class="str">"&lt;long description&gt;"</span>
+  <span class="kw">AFTER</span>  <span class="str">"&lt;short label&gt;"</span> <span class="str">"&lt;long description&gt;"</span>
+  [<span class="kw">WITH</span>   <span class="str">"&lt;change description&gt;"</span>]</pre>
+            <p><strong><code>AT</code></strong> takes a day-form date (<code>YYYY-MM-DD</code>). Year/quarter/month forms are rejected by the validator (boundaries are instants, not intervals; a non-day form raises <code>expected_token</code>). The same <code>AT</code> applies to every metric in the <code>IMPACTING</code> clause.</p>
+            <p><strong><code>BEFORE</code> and <code>AFTER</code></strong> are both mandatory. Each takes two string literals: a short <em>label</em> (rendered inline in row notes when a query straddles or spans the cut) and a longer <em>description</em> (the durable "what was true on this side of the cut" prose, carried in reconciliation and in the historical footer).</p>
+            <p><strong><code>WITH</code></strong> is optional. When present it overrides the runtime-composed change-description sentence shown in the footer of a spanning/straddling query. When absent, the runtime composes that wording from <code>BEFORE</code> and <code>AFTER</code>. The historical-footer wording (shown when the query falls entirely behind the cut) is always runtime-composed.</p>
+            <p><strong>Categorical scoping</strong>: optional <code>AND</code> predicates after <code>AT</code> scope the cut to a sub-population — e.g. a metric change that affected only one segment. The same <a href="#additional-constraints">predicate grammar</a> as <code>OVER</code> applies.</p>
+            <p>Multi-metric <code>IMPACTING</code> follows the same shared-primary-time rule as <a href="#register-region">REGISTER region</a>; mismatched primary times raise <code>incompatible_metrics</code> and you must split into separate <code>REGISTER boundary</code> statements.</p>
+            <pre class="code-hl"><span class="kw">REGISTER</span> <span class="kw">boundary</span> ltv_redef_enterprise
+  <span class="kw">AT</span> 2026-01-01 <span class="kw">AND</span> product_tier = <span class="str">'enterprise'</span>
+  <span class="kw">IMPACTING</span> LTV
+  <span class="kw">BEFORE</span> <span class="str">"v1 enterprise LTV"</span> <span class="str">"12-month gross subscription revenue (excludes refunds)"</span>
+  <span class="kw">AFTER</span>  <span class="str">"v2 enterprise LTV"</span> <span class="str">"18-month net subscription revenue (includes refunds)"</span></pre>
+          </section>
+
+          <section id="check" data-ref-section>
+            <span class="search-keywords" hidden>check lookup lexicon entries matches no database hit</span>
+            <h3>CHECK</h3>
+            <p>Looks up matching lexicon entries for a region — no database hit, no metric computation. Returns matches across both entry kinds as a discriminated <a href="#match-types"><code>LexiconMatch</code></a> array.</p>
+            <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">CHECK</span> &lt;metric&gt;[, &lt;metric&gt;]... <span class="kw">OVER</span> &lt;region&gt;</pre>
+            <p><code>OVER</code> is always required — use <code>OVER all time</code> for the unscoped case. Multi-metric form requires the listed metrics to share a primary time, same rule as <a href="#register-region">REGISTER</a>; otherwise the validator raises <code>incompatible_metrics</code>.</p>
+            <pre class="code-hl"><span class="kw">CHECK</span> total_sales <span class="kw">OVER</span> 2026-Q1
+<span class="kw">CHECK</span> conversion_rate, order_count <span class="kw">OVER</span> 2026-02
+<span class="kw">CHECK</span> total_sales <span class="kw">OVER</span> <span class="kw">all</span> <span class="kw">time</span>     <span class="cmt">-- unbounded form (OVER is required)</span></pre>
+            <p>For region entries you get one match per matching <code>IMPACTING</code> clause: if an entry impacts multiple of your queried metrics and they all overlap, you get multiple matches sharing the same <code>entry</code>. For boundary entries you get one match per (boundary, queried-metric) pair where the boundary applies to that metric and the query straddles the cut. At the <code>CHECK</code> level, every <code>BoundaryMatch</code>'s <code>side</code> is <code>"straddles"</code> (the query itself spans the cut).</p>
+          </section>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- The OVER clause                                              -->
+        <!-- ============================================================ -->
+        <section id="over-clause" data-ref-section>
+          <span class="search-keywords" hidden>over clause time region predicate primary time</span>
+          <h2>The OVER clause</h2>
+          <p>The <code>OVER</code> clause appears on <a href="#compute"><code>COMPUTE</code></a>, on each <code>IMPACTING</code> clause of <a href="#register-region"><code>REGISTER region</code></a>, and on <a href="#check"><code>CHECK</code></a>. Its first clause is always the metric's primary time axis; subsequent <code>AND</code>-joined predicates intersect with it. Only <code>AND</code> is supported — regions are intersections by design.</p>
+
+          <section id="time-mini-language" data-ref-section>
+            <span class="search-keywords" hidden>time mini-language calendar literal year quarter month day range until since all time</span>
+            <h3>Time mini-language</h3>
+            <p>The first clause of <code>OVER</code> is the primary time, written in this small calendar mini-language:</p>
+            <table class="ref-grid">
+              <thead>
+                <tr><th>Form</th><th>Example</th><th>Meaning</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Year</td><td><code>2026</code></td><td>All of 2026</td></tr>
+                <tr><td>Quarter</td><td><code>2026-Q1</code></td><td>First quarter of 2026</td></tr>
+                <tr><td>Month</td><td><code>2026-02</code></td><td>February 2026</td></tr>
+                <tr><td>Day</td><td><code>2026-02-15</code></td><td>A single day</td></tr>
+                <tr><td>Range</td><td><code>2026-02-03 to 2026-02-10</code></td><td>Closed-inclusive interval. Both ends must be the same unit (year, quarter, month, or day) — a mixed-unit range raises <code>mixed_unit_range</code>; a start after the end raises <code>range_start_after_end</code>.</td></tr>
+                <tr><td>Open-ended (left)</td><td><code>until 2026-Q1</code></td><td>Everything up to and including the bound</td></tr>
+                <tr><td>Open-ended (right)</td><td><code>since 2026-01-15</code></td><td>Everything from the bound onward</td></tr>
+                <tr><td>Unbounded</td><td><code>all time</code></td><td>No time constraint</td></tr>
+              </tbody>
+            </table>
+            <p>Time literals are validated for sane values: quarters must be 1–4, months 1–12, days valid for the given month (e.g. <code>2026-02-30</code> raises <code>malformed_time_literal</code>). The metric must have a primary time dimension declared in the semantic model; absence raises <code>missing_primary_time</code>.</p>
+          </section>
+
+          <section id="additional-constraints" data-ref-section>
+            <span class="search-keywords" hidden>predicates constraints comparison in not in time containment categorical</span>
+            <h3>Additional constraints</h3>
+            <p>After the primary time, additional constraints are joined with <code>AND</code> in a uniform <code>&lt;dimension&gt; &lt;operator&gt; &lt;value&gt;</code> shape:</p>
+            <pre class="code-hl"><span class="kw">AND</span> region = <span class="str">'northeast'</span>
+<span class="kw">AND</span> region <span class="kw">IN</span> (<span class="str">'northeast'</span>, <span class="str">'west'</span>)
+<span class="kw">AND</span> region <span class="kw">NOT IN</span> (<span class="str">'midwest'</span>)
+<span class="kw">AND</span> ship_date &gt;= 2026-02-01
+<span class="kw">AND</span> ship_date <span class="kw">IN</span> 2026-Q1                       <span class="cmt">-- IN extends to time containment</span>
+<span class="kw">AND</span> ship_date <span class="kw">IN</span> 2026-02-01 <span class="kw">to</span> 2026-02-28</pre>
+            <p>Operators: <code>=</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>IN</code>, <code>NOT IN</code>. The <code>IN &lt;time-region&gt;</code> form (containment in a calendar literal or range) is only valid against a time dimension; using it on a categorical dimension raises <code>unknown_dimension</code> with a directed message. Comparison values may be strings, numbers, or time literals; comparing a categorical dimension against a time literal raises <code>unknown_dimension</code> as well. Unknown dimensions raise <code>unknown_dimension</code>.</p>
+          </section>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- The Lexicon                                                  -->
+        <!-- ============================================================ -->
+        <section id="lexicon" data-ref-section>
+          <span class="search-keywords" hidden>lexicon knowledge annotations entries reconciliation</span>
+          <h2>The Lexicon</h2>
+          <p>The lexicon is a curated store of contextual knowledge about the data: known anomalies, data-quality issues, real-world events that distort metrics, schema or definition changes. Entries are <em>facts about the world</em>. The lexicon supports two entry kinds, discriminated by <code>kind</code>: <a href="#regions"><code>region</code></a> (a <em>patch</em> in dimensional space) and <a href="#boundaries"><code>boundary</code></a> (a <em>cut</em> at an instant). Both share the lexicon adapter, the auto-reconciliation surface in <a href="#compute"><code>COMPUTE</code></a>, and the per-row <a href="#per-row-decorations">decoration</a> model; they differ in trigger semantics and in syntactic shape.</p>
+
+          <section id="regions" data-ref-section>
+            <span class="search-keywords" hidden>regions patch overlap impact slice</span>
+            <h3>Regions</h3>
+            <p>A region is a contiguous slice of the data — a time interval plus optional categorical constraints — over which one or more metrics are affected. <strong>Trigger semantics</strong>: a region triggers a result value when that value's underlying input rows came from inside the patch. Concretely, at the query level the runtime intersects the query's region with each <code>IMPACTING</code> clause; an empty intersection means no match. Per row, the row's slice (the query region narrowed by the row's group-by columns) must overlap the impact region for the row to be flagged.</p>
+            <p>Grain matters in the per-row check: a row aggregated to a wider grain (say month) can overlap a tightly-scoped region (a single day) and be flagged; a row aggregated to a narrower grain (day) is flagged only when its own interval intersects the region.</p>
+            <p>See <a href="#register-region"><code>REGISTER region</code></a> for the syntax and the <code>RegionLexiconEntry</code> shape under <a href="#lexicon-types">Lexicon types</a>.</p>
+          </section>
+
+          <section id="boundaries" data-ref-section>
+            <span class="search-keywords" hidden>boundaries cut regime before after straddle transition definition change pricing change historical footer</span>
+            <h3>Boundaries</h3>
+            <p>A boundary is a cut at an instant. Data on either side is fine in isolation; mixing across the cut produces an incoherent value. Each boundary carries a <em>before</em> regime and an <em>after</em> regime, each with a short label and a long-form description.</p>
+            <p><strong>Trigger semantics.</strong> The runtime treats the post-cut regime as the operator's <em>now</em>: it is assumed to be normal and is not annotated. The pre-cut regime is history; queries that live in it get a runtime-composed historical footer so the operator knows they are not reading the current state. Queries that span the cut get per-row regime context, and a row whose own interval straddles the cut gets a harsher flag — its value mixes two regimes.</p>
+            <table class="ref-grid trigger-matrix">
+              <thead>
+                <tr><th>Query shape</th><th>Outcome</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Entirely <strong>post-cut</strong> (the "now" world)</td><td><strong>silent</strong> — no row flag, no footer</td></tr>
+                <tr><td>Entirely <strong>pre-cut</strong> (historical query)</td><td><strong>historical footer</strong> — runtime-composed wording from the registered <code>BEFORE</code>/<code>AFTER</code> descriptions; surfaced as a <a href="#decoration-types"><code>HistoricalNote</code></a></td></tr>
+                <tr><td><strong>Spans the cut</strong>, every row cleanly on one side</td><td><strong>warn (amber)</strong> on each row — note cell carries the regime's short label so the analyst sees which world each row is in</td></tr>
+                <tr><td><strong>Spans the cut</strong>, ≥1 row's interval straddles</td><td><strong>error (red)</strong> on the straddling row (value mixes regimes); <strong>warn</strong> on the clean rows</td></tr>
+              </tbody>
+            </table>
+            <p><strong>Straddle rule.</strong> A row's interval <code>[start, end]</code> straddles the cut at <code>T</code> iff <code>start &lt; T ≤ end</code>. The <code>≤</code> on the right makes "T is the first day of the new regime" the natural reading: a row that starts exactly at <code>T</code> contains only post-cut data and does <em>not</em> trigger. Per-row classification (used to drive both straddle detection and regime-label warns) is:</p>
+            <ul>
+              <li><code>"before"</code> — the row's interval is entirely pre-cut (<code>rowEnd &lt; T</code>)</li>
+              <li><code>"after"</code> — the row's interval is at-or-after the cut (<code>rowStart ≥ T</code>)</li>
+              <li><code>"straddles"</code> — the row spans the cut (<code>rowStart &lt; T ≤ rowEnd</code>); the value mixes regimes</li>
+            </ul>
+            <p><strong>Categorical scoping.</strong> Optional <code>AND</code> predicates on the boundary scope the cut to a sub-population. A row is checked against the boundary only if its predicate space is compatible with the scope: if the row pins a scoped dimension to an incompatible value, the boundary doesn't apply at all (per-row classification returns <code>null</code>); if the row aggregates the scoped dimension (no row-level value), it is treated as overlapping the scope.</p>
+            <p>The same compatibility check governs query-level boundary matching: the runtime builds a "virtual row" from the query region's equality constraints and uses it to test whether the query straddles the cut and whether its predicate space overlaps the boundary's scope.</p>
+            <p>See <a href="#register-boundary"><code>REGISTER boundary</code></a> for syntax and the <code>BoundaryLexiconEntry</code> shape under <a href="#lexicon-types">Lexicon types</a>.</p>
+
+            <h4 id="boundary-worked-example">Worked example</h4>
+            <p>Given <code>REGISTER boundary aov_redef AT 2026-01-01 IMPACTING average_order_value BEFORE … AFTER …</code>:</p>
+            <table class="ref-grid">
+              <thead><tr><th>Query</th><th>Outcome</th></tr></thead>
+              <tbody>
+                <tr><td><code>COMPUTE average_order_value OVER 2026-Q1</code></td><td>silent (entirely post-cut)</td></tr>
+                <tr><td><code>COMPUTE average_order_value OVER 2025-Q4</code></td><td>historical footer (entirely pre-cut)</td></tr>
+                <tr><td><code>COMPUTE average_order_value OVER 2025-Q4 to 2026-Q1</code></td><td><strong>error</strong> — one row, inputs span the cut</td></tr>
+                <tr><td><code>COMPUTE average_order_value OVER 2025-Q4 to 2026-Q1 GROUP BY quarter</code></td><td><strong>warn</strong> on each row: Q4 labeled with the BEFORE short label, Q1 with the AFTER label; no row straddles</td></tr>
+                <tr><td><code>COMPUTE average_order_value OVER 2025-Q4 to 2026-Q1 GROUP BY month</code></td><td>same shape, six rows; December rows carry the BEFORE label, Jan–Mar rows the AFTER label</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section id="per-row-decorations" data-ref-section>
+            <span class="search-keywords" hidden>per row decorations row severity warn error matches</span>
+            <h3>Per-row decorations</h3>
+            <p>Every <a href="#compute"><code>COMPUTE</code></a> result carries a <code>decorations</code> array, index-aligned with <code>results.rows</code>. Each entry is a <a href="#decoration-types"><code>RowDecoration</code></a>:</p>
+            <ul>
+              <li><code>matches: LexiconMatch[]</code> — the subset of query-level <code>reconciliation</code> matches that apply to <em>this</em> row's slice. For boundary matches the entry's <code>side</code> is rewritten to the row's actual side (<code>"before"</code>, <code>"after"</code>, or <code>"straddles"</code>) — distinct from the query-level <code>side</code>, which is always <code>"straddles"</code>.</li>
+              <li><code>severity?: "warn" | "error"</code> — a summary of the worst-case match on this row. <code>"error"</code> if any boundary match has <code>side: "straddles"</code>; <code>"warn"</code> for a region match or a boundary "before"/"after" annotation surfacing regime context in a spanning query; <code>undefined</code> if there are no matches.</li>
+            </ul>
+            <p>An empty <code>matches</code> array means the row is unaffected by any lexicon entry. See <a href="#region-utilities"><code>decorationsFor</code></a> for the function that computes this.</p>
+          </section>
+
+          <section id="reconciliation" data-ref-section>
+            <span class="search-keywords" hidden>reconciliation historical notes footer composed</span>
+            <h3>Reconciliation and historical notes</h3>
+            <p>Reconciliation is the automatic surfacing of relevant lexicon entries on every <a href="#compute"><code>COMPUTE</code></a>. Two outputs:</p>
+            <ul>
+              <li><code>reconciliation: LexiconMatch[]</code> — query-level matches: every <a href="#regions">region</a> whose impact region intersects the query's region for the metric, plus every <a href="#boundaries">boundary</a> whose cut the query straddles (and whose categorical scope is compatible). Same shape as <a href="#check"><code>CHECK</code></a>'s <code>matches</code>.</li>
+              <li><code>historicalNotes: HistoricalNote[]</code> — emitted when the query falls entirely on the pre-cut side of one or more boundaries impacting the metric. The condition is strict: <code>queryRegion.timeEnd &lt; boundary.at</code> (a query whose last day equals the cut date is post-cut, not historical, mirroring the straddle rule's <code>start &lt; T ≤ end</code>). The values themselves are not flagged (they are internally consistent under the old regime); the note surfaces that the operator is reading history. Categorical scope is honoured — a boundary scoped to <code>product_tier = 'enterprise'</code> does not raise a historical note for a query pinned to <code>product_tier = 'consumer'</code>.</li>
+            </ul>
+            <p>The wording for the historical footer is composed by the runtime from the registered <code>BEFORE</code> and <code>AFTER</code> descriptions — the pattern is structurally fixed ("you are reading a previous regime; here's what now looks like"). The wording for the spanning/straddling footer is also runtime-composed by default, but can be overridden per-entry via the optional <code>WITH "&lt;sentence&gt;"</code> on <a href="#register-boundary"><code>REGISTER boundary</code></a> (stored as <code>changeDescription</code>).</p>
+            <p>Without a configured lexicon adapter, <code>reconciliation</code> and <code>historicalNotes</code> are empty arrays and the per-row <code>decorations</code> contain no matches.</p>
+          </section>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- Runtime API                                                  -->
+        <!-- ============================================================ -->
+        <section id="runtime-api" data-ref-section>
+          <span class="search-keywords" hidden>runtime api typescript class methods options</span>
+          <h2>Runtime API</h2>
+          <p>The runtime is published as a small TypeScript ES-module library with no runtime dependencies. The exported version constant is <code>VERSION = "0.3.0"</code>.</p>
+
+          <section id="truespeech-class" data-ref-section>
+            <span class="search-keywords" hidden>truespeech class constructor parse validate execute tokenize options</span>
+            <h3>The TrueSpeech class</h3>
+            <pre class="code-hl"><span class="kw">interface</span> TrueSpeechOptions {
+  semanticLayer: SemanticLayerAdapter;
+  database: DatabaseAdapter;
+  lexicon?: LexiconAdapter;
+}
+
+<span class="kw">class</span> TrueSpeech {
+  <span class="kw">constructor</span>(opts: TrueSpeechOptions);
+  tokenize(source: <span class="kw">string</span>): Token[];
+  parse(source: <span class="kw">string</span>): { ast: Statement | <span class="kw">null</span>; errors: TrueSpeechError[] };
+  validate(ast: Statement): { errors: TrueSpeechError[] };
+  execute(source: <span class="kw">string</span>): <span class="kw">Promise</span>&lt;ExecuteResult&gt;;
+}</pre>
+            <ul>
+              <li><strong><code>tokenize</code></strong> — lexical analysis. Pure. Always returns a <code>Token[]</code>, with error tokens for unrecognized characters and an EOF token at the end. Useful for syntax highlighting.</li>
+              <li><strong><code>parse</code></strong> — runs <code>tokenize</code> then the parser. Pure; never throws. Returns the AST (or <code>null</code> if structure was unrecoverable) and the list of parse errors. Useful for live editor feedback.</li>
+              <li><strong><code>validate</code></strong> — semantic validation against the configured semantic-layer model: unknown metrics, unknown dimensions, malformed time literals, range start-after-end, mixed-unit ranges, GROUP BY references that don't fit, ORDER BY references not in the result, and so on. Pure; never throws.</li>
+              <li><strong><code>execute</code></strong> — composes all four phases (tokenize → parse → validate → execute) and dispatches on statement kind. Throws <a href="#execution-error"><code>TrueSpeechExecutionError</code></a> if any phase produced errors. The return type is the discriminated <a href="#result-types"><code>ExecuteResult</code></a> union.</li>
+            </ul>
+            <p>The <code>lexicon</code> option is optional: if omitted, <a href="#register-region"><code>REGISTER</code></a> and <a href="#check"><code>CHECK</code></a> throw at execute time and <a href="#compute"><code>COMPUTE</code></a> skips reconciliation (returns empty <code>reconciliation</code>, empty <code>historicalNotes</code>, and <code>decorations</code> with no matches).</p>
+          </section>
+
+          <section id="adapter-interfaces" data-ref-section>
+            <span class="search-keywords" hidden>adapter interfaces semantic layer database lexicon</span>
+            <h3>Adapter interfaces</h3>
+
+            <h4>SemanticLayerAdapter</h4>
+            <pre class="code-hl"><span class="kw">interface</span> SemanticLayerAdapter {
+  listMetrics(): MetricInfo[];
+  dimensionsForMetric(metricName: <span class="kw">string</span>): DimensionInfo[];
+  primaryTimeForMetric(metricName: <span class="kw">string</span>): DimensionInfo | <span class="kw">null</span>;
+  toSQL(query: SemanticQuery): <span class="kw">string</span>;
+}</pre>
+            <p>Discovery methods (<code>listMetrics</code>, <code>dimensionsForMetric</code>, <code>primaryTimeForMetric</code>) are called at validation time to check references. <code>toSQL</code> is called at execution time to translate the runtime-built <code>SemanticQuery</code> into SQL the database adapter can run.</p>
+            <p>Supporting shapes (also exported):</p>
+            <pre class="code-hl"><span class="kw">interface</span> MetricInfo   { name: <span class="kw">string</span>; description?: <span class="kw">string</span>; }
+<span class="kw">interface</span> DimensionInfo { name: <span class="kw">string</span>; isTime: <span class="kw">boolean</span>; dataset: <span class="kw">string</span>; }
+<span class="kw">type</span> Grain = <span class="str">"day"</span> | <span class="str">"week"</span> | <span class="str">"month"</span> | <span class="str">"quarter"</span> | <span class="str">"year"</span>;
+<span class="kw">type</span> WhereOperator = <span class="str">"="</span> | <span class="str">"!="</span> | <span class="str">"&gt;"</span> | <span class="str">"&lt;"</span> | <span class="str">"&gt;="</span> | <span class="str">"&lt;="</span> | <span class="str">"in"</span> | <span class="str">"not_in"</span>;
+
+<span class="kw">interface</span> SemanticQuery {
+  metric: <span class="kw">string</span>;
+  groupBy?: GroupByClause[];   <span class="cmt">// { dimension: string; grain?: Grain }</span>
+  where?: WhereClause[];       <span class="cmt">// { dimension, operator, value }</span>
+  orderBy?: OrderByClause[];   <span class="cmt">// { field, direction?: "asc" | "desc" }</span>
+  limit?: <span class="kw">number</span>;
+}</pre>
+
+            <h4>DatabaseAdapter</h4>
+            <pre class="code-hl"><span class="kw">interface</span> DatabaseAdapter {
+  execute(sql: <span class="kw">string</span>): <span class="kw">Promise</span>&lt;QueryResult&gt;;
+}
+
+<span class="kw">interface</span> QueryResult {
+  columns: <span class="kw">string</span>[];
+  rows: (<span class="kw">string</span> | <span class="kw">number</span> | <span class="kw">null</span>)[][];
+}</pre>
+            <p>Called once per <a href="#compute"><code>COMPUTE</code></a> with the SQL produced by <code>SemanticLayerAdapter.toSQL</code>. The runtime renames bare-grain columns in the returned result so callers see the user-written column name (e.g. <code>month</code>) rather than the semantic layer's underlying name (e.g. <code>order_date_month</code>).</p>
+
+            <h4>LexiconAdapter</h4>
+            <pre class="code-hl"><span class="kw">interface</span> LexiconAdapter {
+  add(entry: LexiconEntry): <span class="kw">Promise</span>&lt;<span class="kw">void</span>&gt;;
+  list(): <span class="kw">Promise</span>&lt;LexiconEntry[]&gt;;
+}</pre>
+            <p>The adapter is a simple add/list pair — the runtime does all the matching, overlap and crossing math itself. <code>add</code> is called by <a href="#register-region"><code>REGISTER</code></a>; <code>list</code> is called by <a href="#check"><code>CHECK</code></a> and by reconciliation inside <a href="#compute"><code>COMPUTE</code></a>. Storage is up to the implementer (in-memory, SQLite, a database table); duplicate names are allowed at the adapter level.</p>
+
+            <h4>OSI adapter</h4>
+            <pre class="code-hl"><span class="kw">function</span> osiAdapter(runtime: OsiLikeRuntime): SemanticLayerAdapter;</pre>
+            <p>Convenience wrapper that adapts an <a href="https://github.com/truespeech/osi-runtime">OSI Runtime</a> instance to <code>SemanticLayerAdapter</code>. Typed via the structural <code>OsiLikeRuntime</code> interface: any object with the four methods the wrapper needs is acceptable. Near-identity in practice because the shapes already line up.</p>
+          </section>
+
+          <section id="result-types" data-ref-section>
+            <span class="search-keywords" hidden>result types compute register check execute result discriminated union</span>
+            <h3>Result types</h3>
+            <p><code>execute()</code> returns a discriminated union, with the discriminator <code>statement</code>:</p>
+            <pre class="code-hl"><span class="kw">type</span> ExecuteResult = ComputeResult | RegisterResult | CheckResult;
+
+<span class="kw">interface</span> ComputeResult {
+  statement: <span class="str">"compute"</span>;
+  semanticQuery: SemanticQuery;        <span class="cmt">// what was built for the semantic layer</span>
+  sql: <span class="kw">string</span>;                         <span class="cmt">// what the semantic layer generated</span>
+  results: QueryResult;                <span class="cmt">// what the database returned (post-rename)</span>
+  reconciliation: LexiconMatch[];      <span class="cmt">// query-level lexicon matches</span>
+  region: ResolvedRegion;              <span class="cmt">// resolved OVER region the query addressed</span>
+  decorations: RowDecoration[];        <span class="cmt">// per-row matches, index-aligned with results.rows</span>
+  historicalNotes: HistoricalNote[];   <span class="cmt">// boundaries the query falls entirely behind</span>
+}
+
+<span class="kw">interface</span> RegisterResult {
+  statement: <span class="str">"register"</span>;
+  entry: LexiconEntry;                 <span class="cmt">// the entry that was added (region or boundary)</span>
+}
+
+<span class="kw">interface</span> CheckResult {
+  statement: <span class="str">"check"</span>;
+  matches: LexiconMatch[];             <span class="cmt">// matches across both entry kinds</span>
+}</pre>
+          </section>
+
+          <section id="lexicon-types" data-ref-section>
+            <span class="search-keywords" hidden>lexicon entry types region lexicon entry boundary lexicon entry impact regime description resolved region resolved constraint</span>
+            <h3>Lexicon types</h3>
+            <pre class="code-hl"><span class="cmt">// Discriminated by `kind`.</span>
+<span class="kw">type</span> LexiconEntry = RegionLexiconEntry | BoundaryLexiconEntry;
+
+<span class="kw">interface</span> RegionLexiconEntry {
+  kind: <span class="str">"region"</span>;
+  name: <span class="kw">string</span>;
+  impacts: Impact[];                   <span class="cmt">// one per IMPACTING clause, post-expansion</span>
+  description: <span class="kw">string</span>;
+}
+
+<span class="kw">interface</span> BoundaryLexiconEntry {
+  kind: <span class="str">"boundary"</span>;
+  name: <span class="kw">string</span>;
+  at: <span class="kw">string</span>;                         <span class="cmt">// ISO YYYY-MM-DD, the cut's instant</span>
+  constraints: ResolvedConstraint[];   <span class="cmt">// categorical scope (empty = all dim values)</span>
+  metrics: <span class="kw">string</span>[];                  <span class="cmt">// impacted metrics</span>
+  before: RegimeDescription;           <span class="cmt">// pre-cut regime: { label, description }</span>
+  after: RegimeDescription;            <span class="cmt">// post-cut regime: { label, description }</span>
+  changeDescription?: <span class="kw">string</span>;         <span class="cmt">// optional WITH override for the footer</span>
+}
+
+<span class="kw">interface</span> RegimeDescription {
+  label: <span class="kw">string</span>;                      <span class="cmt">// short — rendered inline in row notes</span>
+  description: <span class="kw">string</span>;                <span class="cmt">// long-form prose — rendered in footers</span>
+}
+
+<span class="kw">interface</span> Impact {
+  metric: <span class="kw">string</span>;
+  region: ResolvedRegion;              <span class="cmt">// time interval + categorical constraints</span>
+}
+
+<span class="kw">interface</span> ResolvedRegion {
+  timeStart: <span class="kw">string</span>;                  <span class="cmt">// ISO YYYY-MM-DD, inclusive</span>
+  timeEnd: <span class="kw">string</span>;                    <span class="cmt">// ISO YYYY-MM-DD, inclusive</span>
+  constraints: ResolvedConstraint[];
+}
+
+<span class="kw">interface</span> ResolvedConstraint {
+  dimension: <span class="kw">string</span>;
+  operator: WhereOperator;
+  value: <span class="kw">string</span> | <span class="kw">number</span> | (<span class="kw">string</span> | <span class="kw">number</span>)[];
+}</pre>
+            <p><code>impacts</code> is the post-expansion form: a single <code>IMPACTING metric_a, metric_b OVER &lt;region&gt;</code> source clause produces two entries in <code>impacts</code>, one per metric. <code>ResolvedRegion.timeStart</code>/<code>timeEnd</code> are always inclusive; <code>all time</code> resolves to <code>0001-01-01</code> / <code>9999-12-31</code>; <code>until X</code> resolves to <code>0001-01-01</code> / lastDayOf(X); <code>since X</code> to firstDayOf(X) / <code>9999-12-31</code>.</p>
+          </section>
+
+          <section id="match-types" data-ref-section>
+            <span class="search-keywords" hidden>match types region match boundary match boundary side discriminated union</span>
+            <h3>Match types</h3>
+            <pre class="code-hl"><span class="cmt">// Discriminated by `kind`.</span>
+<span class="kw">type</span> LexiconMatch = RegionMatch | BoundaryMatch;
+
+<span class="kw">interface</span> RegionMatch {
+  kind: <span class="str">"region"</span>;
+  entry: RegionLexiconEntry;
+  impact: Impact;                      <span class="cmt">// the IMPACTING clause that matched</span>
+  overlap: ResolvedRegion;             <span class="cmt">// intersection of query × impact</span>
+}
+
+<span class="kw">type</span> BoundarySide = <span class="str">"before"</span> | <span class="str">"after"</span> | <span class="str">"straddles"</span>;
+
+<span class="kw">interface</span> BoundaryMatch {
+  kind: <span class="str">"boundary"</span>;
+  entry: BoundaryLexiconEntry;
+  metric: <span class="kw">string</span>;                      <span class="cmt">// the impacted metric the match was found for</span>
+  crossedAt: <span class="kw">string</span>;                   <span class="cmt">// ISO YYYY-MM-DD — the boundary's AT</span>
+  side: BoundarySide;                  <span class="cmt">// per-row context; "straddles" at query level</span>
+}</pre>
+            <p>At the query level (in <code>ComputeResult.reconciliation</code> and <code>CheckResult.matches</code>), every <code>BoundaryMatch.side</code> is <code>"straddles"</code> — the query itself spans the cut. At the per-row level (in <code>RowDecoration.matches</code>), <code>side</code> carries each row's actual relationship to the cut as classified by <a href="#region-utilities"><code>classifyRowAgainstBoundary</code></a>.</p>
+          </section>
+
+          <section id="decoration-types" data-ref-section>
+            <span class="search-keywords" hidden>decoration types row decoration historical note severity</span>
+            <h3>Decoration types</h3>
+            <pre class="code-hl"><span class="kw">interface</span> RowDecoration {
+  matches: LexiconMatch[];             <span class="cmt">// subset of reconciliation that apply to this row</span>
+  severity?: <span class="str">"warn"</span> | <span class="str">"error"</span>;        <span class="cmt">// "error" if any boundary match is "straddles"</span>
+}
+
+<span class="kw">interface</span> HistoricalNote {
+  boundary: BoundaryLexiconEntry;      <span class="cmt">// the boundary the query falls entirely behind</span>
+  metric: <span class="kw">string</span>;
+}</pre>
+            <p>See <a href="#per-row-decorations">Per-row decorations</a> for severity rules and <a href="#reconciliation">Reconciliation and historical notes</a> for when <code>HistoricalNote</code>s fire.</p>
+          </section>
+
+          <section id="region-utilities" data-ref-section>
+            <span class="search-keywords" hidden>region utilities resolve intersect render format bucket build row crosses boundary classify decorations for</span>
+            <h3>Region utilities</h3>
+            <p>A small set of pure functions for working with regions and per-row matching. Used internally by the executor; exported for callers that want to compute against alternative match sets, render regions for display, or implement editor surfaces.</p>
+            <pre class="code-hl"><span class="kw">function</span> resolveRegion(over: OverClause, primaryTimeField: <span class="kw">string</span> | <span class="kw">null</span>): ResolvedRegion;</pre>
+            <p>Turn an AST <code>OverClause</code> into a <code>ResolvedRegion</code>: time mini-language expanded to a closed-interval date pair; constraints normalized to <code>ResolvedConstraint</code>. The <code>primaryTimeField</code> parameter is accepted for call-site self-documentation; the resulting region does not store the field name.</p>
+            <pre class="code-hl"><span class="kw">function</span> intersectRegions(a: ResolvedRegion, b: ResolvedRegion): ResolvedRegion | <span class="kw">null</span>;</pre>
+            <p>Compute the overlap of two regions: time is the inner bounds (max of starts, min of ends); constraints are the deduplicated union. Returns <code>null</code> if the time intervals do not intersect.</p>
+            <pre class="code-hl"><span class="kw">function</span> renderTimeRegion(start: <span class="kw">string</span>, end: <span class="kw">string</span>): <span class="kw">string</span>;</pre>
+            <p>Pretty-print a date interval at the coarsest unit at which both endpoints align (e.g. <code>[2026-01-01, 2026-12-31]</code> → <code>"2026"</code>; <code>[2026-02-01, 2026-04-30]</code> → <code>"2026-02 to 2026-04"</code>; otherwise falls through to the <code>YYYY-MM-DD to YYYY-MM-DD</code> form).</p>
+            <pre class="code-hl"><span class="kw">function</span> renderRegion(region: ResolvedRegion): <span class="kw">string</span>;</pre>
+            <p>Same as <code>renderTimeRegion</code>, plus categorical constraints joined with <code>AND</code>.</p>
+            <pre class="code-hl"><span class="kw">function</span> formatTimeBucket(isoStart: <span class="kw">string</span>, grain: Grain): <span class="kw">string</span>;</pre>
+            <p>Format a time-grain bucket (a single ISO date marking the bucket's start) at the same resolution <code>renderTimeRegion</code> uses. Synthesizes the bucket's end from <code>grain</code> and delegates.</p>
+            <pre class="code-hl"><span class="kw">function</span> endOfBucket(isoStart: <span class="kw">string</span>, grain: Grain): <span class="kw">string</span>;</pre>
+            <p>Inverse of a bucket's start: given the ISO date that names the bucket, return the last ISO date contained in it. <code>"day"</code> returns the same date; <code>"week"</code> returns start + 6 days; <code>"month"</code> / <code>"quarter"</code> / <code>"year"</code> return the calendar-end of that unit.</p>
+            <pre class="code-hl"><span class="kw">function</span> buildRowRegion(
+  row: (<span class="kw">string</span> | <span class="kw">number</span> | <span class="kw">null</span>)[],
+  groupBys: GroupByClause[],
+  queryRegion: ResolvedRegion
+): RowRegion;</pre>
+            <p>Derive a result row's effective slice (<code>{ timeStart, timeEnd, dimValues }</code>) from the query region and any group-by columns. Equality constraints from the query region's predicates are inherited into <code>dimValues</code> (so e.g. a top-level <code>AND region = 'west'</code> pins every row to that value).</p>
+            <pre class="code-hl"><span class="kw">function</span> rowMatchesImpact(row: RowRegion, impact: ResolvedRegion): <span class="kw">boolean</span>;</pre>
+            <p>Does the row's slice overlap an impact region? — the region-match test. Time intervals overlap, and every constraint on the impact region is compatible with the row's <code>dimValues</code> (a dim the row aggregates is treated as compatible).</p>
+            <pre class="code-hl"><span class="kw">function</span> crossesBoundary(
+  row: RowRegion,
+  boundary: { at: <span class="kw">string</span>; constraints: ResolvedConstraint[] }
+): <span class="kw">boolean</span>;</pre>
+            <p>Does the row's slice straddle the cut (<code>rowStart &lt; at ≤ rowEnd</code>) and is its predicate space compatible with the boundary's scope? — the boundary-match test.</p>
+            <pre class="code-hl"><span class="kw">function</span> classifyRowAgainstBoundary(
+  row: RowRegion,
+  boundary: BoundaryLexiconEntry
+): BoundarySide | <span class="kw">null</span>;</pre>
+            <p>Finer classification used by <code>decorationsFor</code> for per-row regime labeling. Returns <code>null</code> if the row falls outside the boundary's categorical scope (in which case the boundary does not apply at all); otherwise one of <code>"before"</code>, <code>"after"</code>, <code>"straddles"</code>.</p>
+            <pre class="code-hl"><span class="kw">function</span> decorationsFor(
+  rows: (<span class="kw">string</span> | <span class="kw">number</span> | <span class="kw">null</span>)[][],
+  matches: LexiconMatch[],
+  groupBys: GroupByClause[],
+  queryRegion: ResolvedRegion
+): RowDecoration[];</pre>
+            <p>Wire the above into per-row <a href="#decoration-types"><code>RowDecoration</code></a> arrays. Used internally by <code>executeCompute</code> to populate <code>ComputeResult.decorations</code>; exported for callers that want to compute decorations against alternative match sets (e.g. a what-if lexicon). The <code>groupBys</code> parameter is the semantic-layer <code>GroupByClause</code> (re-exported as <code>SemanticGroupByClause</code>, shape <code>{ dimension: string; grain?: Grain }</code>), not the AST form.</p>
+            <pre class="code-hl"><span class="kw">function</span> resultColumnNames(stmt: ComputeStatement): <span class="kw">string</span>[];</pre>
+            <p>The column names a <a href="#compute"><code>COMPUTE</code></a> statement will produce in <code>QueryResult.columns</code>, derived purely from the AST without executing. Bare-grain group-bys appear as the bare grain word (<code>"month"</code>); explicit time-dimension group-bys as <code>"&lt;dimension&gt;_&lt;grain&gt;"</code>; the metric as the trailing column. Useful for validators and editor surfaces that need to know column shape before running.</p>
+            <p>The <code>RowRegion</code> shape used by the row-level utilities above is exported as a type for callers building their own per-row matching:</p>
+            <pre class="code-hl"><span class="kw">interface</span> RowRegion {
+  timeStart: <span class="kw">string</span>;
+  timeEnd: <span class="kw">string</span>;
+  dimValues: <span class="kw">Record</span>&lt;<span class="kw">string</span>, <span class="kw">string</span> | <span class="kw">number</span>&gt;;
+}</pre>
+          </section>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- Errors                                                       -->
+        <!-- ============================================================ -->
+        <section id="errors" data-ref-section>
+          <span class="search-keywords" hidden>errors diagnostics caret rust style render error code message span</span>
+          <h2>Errors</h2>
+          <p>Errors are data, not exceptions. The tokenizer, parser, and validator all collect <code>TrueSpeechError</code> values rather than throwing — the editor surface needs them as data. <a href="#truespeech-class"><code>execute()</code></a> composes them and throws (via <a href="#execution-error"><code>TrueSpeechExecutionError</code></a>) only at the boundary where a caller asked for a result.</p>
+
+          <section id="error-shape" data-ref-section>
+            <span class="search-keywords" hidden>error shape interface notes help related spans</span>
+            <h3>Error shape</h3>
+            <pre class="code-hl"><span class="kw">interface</span> TrueSpeechError {
+  code: ErrorCode;                     <span class="cmt">// stable identifier — see Error codes</span>
+  message: <span class="kw">string</span>;
+  span: { start: <span class="kw">number</span>; end: <span class="kw">number</span> };
+  notes?: <span class="kw">string</span>[];
+  help?: <span class="kw">string</span>;                       <span class="cmt">// actionable suggestion</span>
+  relatedSpans?: { span: Span; label: <span class="kw">string</span> }[];
+}</pre>
+            <p>Every error carries a <code>span</code> (start/end character offsets in the source) so the renderer can produce caret diagnostics. <code>help</code> is conventionally used for "did you mean X?" / "available metrics: …" style guidance; <code>notes</code> for supplementary context; <code>relatedSpans</code> for pointing at a second location relevant to the error.</p>
+          </section>
+
+          <section id="error-codes" data-ref-section>
+            <span class="search-keywords" hidden>error codes list tokenizer parser validator executor</span>
+            <h3>Error codes</h3>
+            <p>The <code>ErrorCode</code> string union, grouped by the phase that emits it:</p>
+            <table class="ref-grid">
+              <thead><tr><th>Phase</th><th>Code</th><th>Meaning</th></tr></thead>
+              <tbody>
+                <tr><td rowspan="3">Parser / Validator</td><td><code>unexpected_token</code></td><td>A token appears where the grammar doesn't allow it. Also used by the validator to flag a non-day-form <code>AT</code> on <a href="#register-boundary"><code>REGISTER boundary</code></a>.</td></tr>
+                <tr><td><code>expected_token</code></td><td>A specific token was required and missing.</td></tr>
+                <tr><td><code>unexpected_eof</code></td><td>Source ended mid-statement (also raised by <code>execute()</code> if the source produced no statement).</td></tr>
+                <tr><td rowspan="9">Validator</td><td><code>malformed_time_literal</code></td><td>A time literal whose shape resembles a calendar form but isn't valid (e.g. <code>2026-Q9</code>, <code>2026-13</code>, <code>2026-02-30</code>). Raised by the parser when re-parsing time literal text, and by the validator on bad quarter / month / day values.</td></tr>
+                <tr><td><code>unknown_metric</code></td><td>Referenced metric is not in the semantic model.</td></tr>
+                <tr><td><code>unknown_dimension</code></td><td>Referenced dimension is not on the metric's dataset, or a categorical dimension was compared against a time literal, or <code>IN &lt;time-region&gt;</code> was applied to a non-time dimension.</td></tr>
+                <tr><td><code>missing_primary_time</code></td><td>The metric has no primary time dimension and the statement needs one.</td></tr>
+                <tr><td><code>incompatible_metrics</code></td><td>Multi-metric COMPUTE attempted (not supported in v0.3.0), or multi-metric IMPACTING / CHECK metrics don't share a primary time.</td></tr>
+                <tr><td><code>grain_required</code></td><td>Time dimension in <code>GROUP BY</code> needs a grain, or a grain was applied to a non-time dimension.</td></tr>
+                <tr><td><code>range_start_after_end</code></td><td>A range literal whose start comes after its end.</td></tr>
+                <tr><td><code>mixed_unit_range</code></td><td>The two ends of a range are different calendar units.</td></tr>
+                <tr><td><code>order_by_unknown_field</code></td><td><code>ORDER BY</code> references a field not in the result columns.</td></tr>
+                <tr><td rowspan="6">Reserved</td><td><code>unexpected_character</code></td><td>Declared in the error model. Reserved; tokenization produces error-kind tokens rather than raising this code.</td></tr>
+                <tr><td><code>unterminated_string</code></td><td>Declared in the error model. Reserved; tokenization handles unclosed strings via error-kind tokens.</td></tr>
+                <tr><td><code>malformed_number</code></td><td>Declared in the error model. Reserved.</td></tr>
+                <tr><td><code>invalid_calendar_unit</code></td><td>Declared in the error model. Reserved.</td></tr>
+                <tr><td><code>duplicate_metric</code></td><td>Declared in the error model. Reserved.</td></tr>
+                <tr><td><code>execution_failure</code></td><td>Declared in the error model. Reserved.</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section id="render-error" data-ref-section>
+            <span class="search-keywords" hidden>render error caret diagnostic terminal display rust style</span>
+            <h3>renderError</h3>
+            <pre class="code-hl"><span class="kw">function</span> renderError(error: TrueSpeechError, source: <span class="kw">string</span>): <span class="kw">string</span>;
+<span class="kw">function</span> renderErrors(errors: TrueSpeechError[], source: <span class="kw">string</span>): <span class="kw">string</span>;</pre>
+            <p>Produces a Rust-style caret diagnostic suitable for terminal display. <code>renderErrors</code> concatenates with a blank line between each. Example output:</p>
+            <pre class="code-hl">error[unknown_metric]: Unknown metric "total_sals"
+  --&gt; 1:9
+  |
+1 | COMPUTE total_sals OVER 2026-02
+  |         ^^^^^^^^^^
+  = help: Available metrics: total_sales, average_order_value, order_count</pre>
+            <p><code>notes</code> render as <code>= note: &lt;text&gt;</code> lines after the caret; <code>relatedSpans</code> render as <code>= &lt;label&gt; (at &lt;line&gt;:&lt;column&gt;)</code> lines.</p>
+          </section>
+
+          <section id="execution-error" data-ref-section>
+            <span class="search-keywords" hidden>truespeech execution error throw errors array</span>
+            <h3>Execution error</h3>
+            <pre class="code-hl"><span class="kw">class</span> TrueSpeechExecutionError <span class="kw">extends</span> <span class="kw">Error</span> {
+  <span class="kw">readonly</span> errors: <span class="kw">readonly</span> TrueSpeechError[];
+}</pre>
+            <p>Thrown by <a href="#truespeech-class"><code>TrueSpeech.execute()</code></a> when any phase produced errors. The <code>errors</code> field exposes the full list (parse errors, or validate errors, or the single-element list synthesized when source produced no statement) — callers can inspect them programmatically or pass to <a href="#render-error"><code>renderErrors</code></a> for display. The exception's <code>message</code> is a brief summary; the full detail lives on <code>errors</code>.</p>
+          </section>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script type="module">
+    import Fuse from "https://cdn.jsdelivr.net/npm/fuse.js@7/dist/fuse.mjs";
+
+    // ===== Build the search corpus from page sections =====
+    //
+    // Per the page contract, each <section data-ref-section> contributes a
+    // heading (weight 0.7), a hidden .search-keywords blob (weight 0.5),
+    // and its visible body text (weight 0.2). The body text excludes the
+    // section's own nested subsection bodies so a search hit for "OVER"
+    // doesn't fall on every parent.
+    const corpus = [];
+    for (const section of document.querySelectorAll("section[data-ref-section]")) {
+      const headingEl = section.querySelector(":scope > h2, :scope > h3, :scope > h4");
+      if (!headingEl) continue;
+      const heading = headingEl.textContent.trim();
+      const kwEl = section.querySelector(":scope > .search-keywords");
+      const keywords = kwEl ? kwEl.textContent.trim() : "";
+      // Body = section text minus nested subsections and the keywords blob.
+      const clone = section.cloneNode(true);
+      clone
+        .querySelectorAll("section[data-ref-section], .search-keywords")
+        .forEach((n) => n.remove());
+      const body = clone.textContent.replace(/\s+/g, " ").trim();
+      corpus.push({
+        id: section.id,
+        heading,
+        keywords,
+        body,
+      });
+    }
+
+    const fuse = new Fuse(corpus, {
+      includeScore: true,
+      threshold: 0.4,
+      ignoreLocation: true,
+      minMatchCharLength: 2,
+      keys: [
+        { name: "heading", weight: 0.7 },
+        { name: "keywords", weight: 0.5 },
+        { name: "body", weight: 0.2 },
+      ],
+    });
+
+    const input = document.getElementById("ref-search-input");
+    const results = document.getElementById("ref-search-results");
+
+    function hideResults() {
+      results.hidden = true;
+      results.innerHTML = "";
+      input.setAttribute("aria-expanded", "false");
+    }
+
+    function renderResults(hits) {
+      if (hits.length === 0) {
+        results.innerHTML = '<div class="ref-search-empty">No matches.</div>';
+        results.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+        return;
+      }
+      results.innerHTML = hits
+        .slice(0, 12)
+        .map(
+          (h) =>
+            `<a class="ref-search-hit" href="#${h.item.id}" data-hit>
+               <span class="ref-search-hit-heading">${escapeHtml(h.item.heading)}</span>
+               ${h.item.keywords ? `<span class="ref-search-hit-kw">${escapeHtml(truncate(h.item.keywords, 80))}</span>` : ""}
+             </a>`
+        )
+        .join("");
+      results.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function truncate(s, n) {
+      return s.length > n ? s.slice(0, n - 1) + "…" : s;
+    }
+
+    input.addEventListener("input", () => {
+      const q = input.value.trim();
+      if (q.length < 2) {
+        hideResults();
+        return;
+      }
+      const hits = fuse.search(q);
+      renderResults(hits);
+    });
+
+    // Clicking a hit scrolls to the section (default anchor behavior); we
+    // dismiss the dropdown so it doesn't sit on top of the target section.
+    results.addEventListener("click", (e) => {
+      const hit = e.target.closest("a[data-hit]");
+      if (!hit) return;
+      hideResults();
+      input.value = "";
+    });
+
+    // Dismiss on outside click or Escape.
+    document.addEventListener("click", (e) => {
+      if (!results.contains(e.target) && e.target !== input) hideResults();
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        hideResults();
+        input.value = "";
+      }
+    });
+
+    // ===== Active-section TOC highlight =====
+    //
+    // Same pattern as sandbox.html: an IntersectionObserver flips the
+    // .active class on whichever TOC link matches the section currently
+    // crossing screen-center. rootMargin keeps the highlight steady
+    // around the middle band rather than flickering at section borders.
+    const tocLinks = document.querySelectorAll(".ref-toc a[data-toc]");
+    const tocByHash = new Map();
+    for (const link of tocLinks) tocByHash.set(link.getAttribute("href"), link);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const link = tocByHash.get(`#${entry.target.id}`);
+          if (!link) continue;
+          tocLinks.forEach((l) => l.classList.remove("active"));
+          link.classList.add("active");
+        }
+      },
+      { rootMargin: "-30% 0px -60% 0px" }
+    );
+    for (const section of document.querySelectorAll("section[data-ref-section]")) {
+      observer.observe(section);
+    }
+
+    // Mobile: a collapsible Contents button reveals the TOC inline below
+    // the header. On wider viewports the TOC is always visible (CSS).
+    const toggle = document.getElementById("ref-toc-toggle");
+    const toc = document.getElementById("ref-toc");
+    toggle.addEventListener("click", () => {
+      const open = toc.classList.toggle("ref-toc-open");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    // Tapping a TOC link on mobile closes the panel so the user can see
+    // the section they navigated to.
+    toc.addEventListener("click", (e) => {
+      const link = e.target.closest("a[data-toc]");
+      if (!link) return;
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        toc.classList.remove("ref-toc-open");
+        toggle.setAttribute("aria-expanded", "false");
+      }
+    });
+  </script>
+</body>
+</html>
