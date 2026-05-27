@@ -98,140 +98,10 @@ code {
   background: #ccc;
 }
 
-/* Lexicon panel — uses the unified panel chrome (cream + warm-gray
-   border) so the lexicon, notebook, and search-panel all read as the
-   same kind of element. Entries stack as rows separated by a subtle
-   warm-gray divider. */
-
-.lexicon-panel {
-  background: #fdfcf6;
-  border: 1px solid #d8d4c5;
-  border-radius: 6px;
-  margin-bottom: 16px;
-}
-
-.lexicon-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: #f8f6ed;
-  border-bottom: 1px solid #d8d4c5;
-  border-radius: 6px 6px 0 0;
-}
-
-.lexicon-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #555;
-}
-
-.lexicon-count {
-  font-size: 12px;
-  color: #888;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-}
-
-.lexicon-reset {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 11px;
-  font-weight: 600;
-  color: #555;
-  background: #fff;
-  border: 1px solid #c8c4b3;
-  border-radius: 3px;
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.lexicon-reset:hover {
-  background: #f0ece0;
-  border-color: #8a6d3b;
-}
-
-.lexicon-entries {
-  display: flex;
-  flex-direction: column;
-}
-
-.lexicon-empty {
-  padding: 14px;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #888;
-  font-style: italic;
-}
-
-.lexicon-entry {
-  display: flex;
-  align-items: flex-start;
-  padding: 10px 14px;
-  border-bottom: 1px solid #e8e4d4;
-  gap: 8px;
-}
-
-.lexicon-entry:last-child {
-  border-bottom: none;
-}
-
-.lexicon-entry-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-}
-
-.lexicon-entry-main {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: baseline;
-}
-
-.lexicon-entry-name {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 13px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.lexicon-entry-impact {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #555;
-  background: #f0ece0;
-  padding: 1px 6px;
-  border-radius: 3px;
-}
-
-.lexicon-entry-desc {
-  font-size: 12px;
-  color: #666;
-  font-style: italic;
-}
-
-.lexicon-entry-delete {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 16px;
-  line-height: 1;
-  color: #999;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 2px 8px;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.lexicon-entry-delete:hover {
-  color: #c92a2a;
-  border-color: #f5b8b8;
-  background: #fff0f0;
-}
+/* Lexicon panel removed in the Thread 2 restructure (v0.4.0+ sandbox);
+   the always-visible panel was replaced by the hints card pointing at
+   SHOW LEXICON / SHOW SCHEMA / UNREGISTER. Rules deleted here to keep
+   the stylesheet honest about what the page renders. */
 
 /* REPL panels */
 
@@ -1471,36 +1341,15 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
    page chrome and search panel are new here.
    =========================================================================== */
 
-/* Sandbox data-context: a compact orientation block at the top of
-   the page. One narrative paragraph + two compact data tables side
-   by side. */
+/* (Thread 2 cleanup: .sandbox-context and .sandbox-context-grid were
+   the always-visible data-context tables on the sandbox page, retired
+   along with the lexicon panel. The .data-table class below is still
+   used — by SHOW SCHEMA's per-metric dimension tables and by SHOW
+   LEXICON's list view in the notebook.) */
 
-.sandbox-context {
-  margin: 0 0 28px;
-}
-
-.sandbox-context h2 {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  margin: 0 0 10px;
-}
-
-.sandbox-context p {
-  margin: 0 0 16px;
-  color: #333;
-  max-width: 880px;
-}
-
-.sandbox-context-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-/* Shared data-table style: used by the data-context's metric/dimension
-   tables and (eventually) any tabular display in the sandbox. Same
-   visual language as the reference page's .ref-grid. */
+/* Shared data-table style: used by SHOW SCHEMA dimension tables in
+   notebook cells and (originally) by any tabular display in the
+   sandbox. Same visual language as the reference page's .ref-grid. */
 
 .data-table {
   border-collapse: collapse;
@@ -1748,10 +1597,6 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 }
 
 @media (max-width: 720px) {
-  .sandbox-context-grid {
-    grid-template-columns: 1fr;
-  }
-
   .search-result-row {
     display: flex;
     flex-direction: column;
@@ -1764,4 +1609,159 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
     padding: 10px 14px;
     text-align: left;
   }
+}
+
+/* ===========================================================================
+   v0.4.0 SHOW / UNREGISTER cell content. These complement the existing
+   notebook cell chrome (nb-cell-input / nb-cell-output) with renderers
+   for the new runtime statements. SHOW LEXICON has both a compact list
+   table and a detail view; SHOW SCHEMA renders per-metric blocks; the
+   UNREGISTER cell reuses the existing nb-register-banner style and adds
+   a soft-note variant for the not-found case.
+   =========================================================================== */
+
+/* Shared soft-info note — used by SHOW LEXICON not-found, SHOW LEXICON
+   empty-lexicon, UNREGISTER not-found, etc. Plain, ungaudy. */
+
+.nb-soft-note {
+  margin: 0;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+
+/* SHOW LEXICON list — relies on .data-table for the bones; column-
+   specific styles below tighten the look. */
+
+.nb-show-table {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+.nb-show-name {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.nb-show-scope {
+  color: #555;
+  font-size: 12px;
+}
+
+.nb-show-summary {
+  color: #666;
+  font-style: italic;
+  font-size: 12px;
+  max-width: 360px;
+}
+
+/* SHOW LEXICON <name> detail view — header (kind tag + name), meta line
+   (impacts or cut), then either an impacts list (region) or a regimes
+   block (boundary). */
+
+.nb-show-detail {
+  background: #f8f6ed;
+  border: 1px solid #d8d4c5;
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nb-show-detail-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.nb-show-detail-name {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.nb-show-detail-meta {
+  margin: 0;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #555;
+}
+
+.nb-show-impacts {
+  margin: 0;
+  padding: 0 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #444;
+}
+
+.nb-show-detail-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #444;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.nb-show-detail-change {
+  margin: 0;
+  font-size: 12px;
+  color: #6b4500;
+  font-style: italic;
+}
+
+/* SHOW SCHEMA — one section per metric: header (name + primary time),
+   optional description, dimensions table. */
+
+.nb-metric-block {
+  background: #f8f6ed;
+  border: 1px solid #d8d4c5;
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nb-metric-block + .nb-metric-block {
+  /* Subtle separator between metric blocks. */
+  margin-top: 4px;
+}
+
+.nb-metric-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nb-metric-name {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.nb-metric-primary {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  color: #555;
+  background: #f0ece0;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.nb-metric-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.nb-metric-dims {
+  margin: 4px 0 0;
 }

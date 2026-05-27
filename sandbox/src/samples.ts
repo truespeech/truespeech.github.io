@@ -23,7 +23,8 @@ export type SampleGroup =
   | "Boundary exploration"
   | "Disambiguation"
   | "Lexicon lookup"
-  | "Lexicon registration";
+  | "Lexicon registration"
+  | "Introspection";
 
 export const SAMPLES: Sample[] = [
   // ===== Basic compute =====
@@ -234,5 +235,43 @@ export const SAMPLES: Sample[] = [
     code: `REGISTER boundary fy26_pricing\n  AT 2026-01-01 AND product_tier = 'consumer'\n  IMPACTING total_sales\n  BEFORE "FY25 list prices" "Consumer-tier list prices set during the prior fiscal year."\n  AFTER  "FY26 list prices" "Consumer prices reduced ~8% on Jan 1 to drive volume."\n  WITH "FY26 consumer-tier pricing reset on Jan 1, 2026."`,
     description: "A scoped boundary with an optional WITH override — the WITH replaces the auto-composed change sentence in spanning footers.",
     keywords: ["scoped boundary", "with override", "consumer", "pricing", "change description"],
+  },
+
+  // ===== Introspection (v0.4.0) =====
+  {
+    group: "Introspection",
+    code: "SHOW LEXICON",
+    description: "List every entry currently in the lexicon as a compact table — kind, name, scope, and a one-line summary per row.",
+    keywords: ["show", "list", "lexicon", "inspect", "describe", "data dictionary", "all entries"],
+  },
+  {
+    group: "Introspection",
+    code: "SHOW LEXICON aov_definition_change",
+    description: "Detail view of a single named entry — full impacts (regions) or full BEFORE/AFTER regimes (boundaries) plus any change override.",
+    keywords: ["show", "describe", "lexicon", "one entry", "detail", "filter by name"],
+  },
+  {
+    group: "Introspection",
+    code: "SHOW LEXICON nonexistent_entry",
+    description: "Filtering by a name that doesn't exist returns an empty result rather than throwing — the cell renders a soft note.",
+    keywords: ["show", "not found", "missing", "empty", "non throwing"],
+  },
+  {
+    group: "Introspection",
+    code: "SHOW SCHEMA",
+    description: "Inspect the semantic-layer surface — every metric, its primary time, and the dimensions on its dataset. Rendered as one block per metric.",
+    keywords: ["show", "schema", "metrics", "dimensions", "semantic layer", "describe", "data dictionary"],
+  },
+  {
+    group: "Introspection",
+    code: "UNREGISTER q1_data_quality_issue",
+    description: "Drop a lexicon entry by name. After running, re-run any query that touched Feb 15–20 — the q1 region no longer flags. Reset the lexicon (panel above) to restore.",
+    keywords: ["unregister", "remove", "delete", "drop", "lexicon", "mutate"],
+  },
+  {
+    group: "Introspection",
+    code: "UNREGISTER never_existed",
+    description: "Unregistering a name that doesn't exist returns found: false rather than throwing. The cell renders a soft note.",
+    keywords: ["unregister", "not found", "missing", "non throwing", "graceful"],
   },
 ];

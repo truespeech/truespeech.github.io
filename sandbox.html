@@ -9,36 +9,26 @@
 <body>
   <div class="page">
     <div class="intro">
-      <p class="kicker">True Speech · v0.3.0 · Sandbox</p>
+      <p class="kicker">True Speech · v0.4.0 · Sandbox</p>
       <h1>truespeech Sandbox</h1>
-      <p class="lede">A scratch space for tinkering with truespeech. The lexicon is preloaded with a handful of entries from the operating life of a fictional retailer; the notebook below is yours to play in. Looking to learn the language? Start with the <a href="tutorial.html">tutorial</a>. Need the full grammar? See the <a href="reference.html">reference</a>.</p>
-      <p>Pinned to <code>truespeech@v0.3.0</code> · <a href="https://github.com/truespeech/truespeech">source on GitHub</a></p>
+      <p class="lede">A scratch space for tinkering with truespeech. The notebook below is yours to play in; results stack as cells you can scroll back through. Looking to learn the language? Start with the <a href="tutorial.html">tutorial</a>. Need the full grammar? See the <a href="reference.html">reference</a>.</p>
+      <p>The corpus is <strong>NorthStar Goods</strong>, a fictional mid-size US retailer — ~200 rows of order data spanning Jan 2025 through Apr 2026, with two product tiers (consumer / enterprise) across four regions. The lexicon is preloaded with a handful of entries from their operating life — known data-quality windows, a regional outage, a couple of metric-definition changes.</p>
+      <p>Pinned to <code>truespeech@v0.4.0</code> · <a href="https://github.com/truespeech/truespeech">source on GitHub</a></p>
     </div>
 
-    <section id="data-context" class="sandbox-context">
-      <h2>The data</h2>
-      <p><strong>NorthStar Goods</strong> is a mid-size US retailer with two product tiers (<code>consumer</code>, <code>enterprise</code>) operating across four regions. The corpus is ~200 rows of order data, Jan 2025 through Apr 2026, served from an in-browser DuckDB-WASM instance through an OSI semantic layer.</p>
-      <div class="sandbox-context-grid">
-        <table class="data-table">
-          <caption>Metrics</caption>
-          <thead><tr><th>Name</th><th>Measures</th></tr></thead>
-          <tbody>
-            <tr><td><code>total_sales</code></td><td>Gross sales revenue (SUM of order amount).</td></tr>
-            <tr><td><code>average_order_value</code></td><td>Average order amount; methodology shifted Jan 1, 2026 (see lexicon).</td></tr>
-            <tr><td><code>order_count</code></td><td>Count of distinct orders.</td></tr>
-          </tbody>
-        </table>
-        <table class="data-table">
-          <caption>Dimensions</caption>
-          <thead><tr><th>Name</th><th>Splits by</th></tr></thead>
-          <tbody>
-            <tr><td><code>order_date</code></td><td>Primary time; all <code>OVER</code> clauses bind here.</td></tr>
-            <tr><td><code>region</code></td><td>northeast, west, southeast, midwest.</td></tr>
-            <tr><td><code>product_tier</code></td><td>consumer or enterprise.</td></tr>
-          </tbody>
-        </table>
+    <aside class="sandbox-hints" aria-label="Getting started">
+      <p class="sandbox-hints-title">Start here</p>
+      <ul class="sandbox-hints-list">
+        <li><code>SHOW LEXICON</code> — list every annotation currently in the lexicon</li>
+        <li><code>SHOW LEXICON &lt;name&gt;</code> — full detail on one entry</li>
+        <li><code>SHOW SCHEMA</code> — metrics and dimensions in the semantic layer</li>
+        <li><code>UNREGISTER &lt;name&gt;</code> — drop an entry from the lexicon</li>
+      </ul>
+      <div class="sandbox-hints-foot">
+        <a href="reference.html">Full grammar →</a>
+        <button id="reset-lexicon-btn" class="sandbox-reset-btn" type="button" title="Restore the seed lexicon entries">Reset lexicon</button>
       </div>
-    </section>
+    </aside>
 
     <section id="workspace" class="sandbox-workspace">
       <div id="demo"></div>

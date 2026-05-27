@@ -17,7 +17,6 @@
 import { IMPORTS } from "./config.js";
 import { initDatabase, query as dbQuery } from "./db.js";
 import { createNotebook } from "./notebook.js";
-import { createLexiconPanel } from "./lexicon-panel.js";
 import { createSearchPanel } from "./search-panel.js";
 import { SAMPLES } from "./samples.js";
 
@@ -84,6 +83,19 @@ interface HistoricalNote {
   metric: string;
 }
 
+interface DimensionInfo {
+  name: string;
+  isTime: boolean;
+  dataset: string;
+}
+
+interface MetricSummary {
+  name: string;
+  description?: string;
+  primaryTime: string | null;
+  dimensions: DimensionInfo[];
+}
+
 type ExecuteResult =
   | {
       statement: "compute";
@@ -96,7 +108,10 @@ type ExecuteResult =
       historicalNotes: HistoricalNote[];
     }
   | { statement: "register"; entry: LexiconEntry }
-  | { statement: "check"; matches: LexiconMatch[] };
+  | { statement: "check"; matches: LexiconMatch[] }
+  | { statement: "show"; subject: "lexicon"; entries: LexiconEntry[]; filter?: string }
+  | { statement: "show"; subject: "schema"; metrics: MetricSummary[] }
+  | { statement: "unregister"; name: string; found: boolean };
 
 type Grain = "day" | "week" | "month" | "quarter" | "year";
 
@@ -141,11 +156,6 @@ class MemoryLexicon {
     const before = this.entries.length;
     this.entries = this.entries.filter((e) => e.name !== name);
     return this.entries.length < before;
-  }
-  // Synchronous shim retained for the lexicon panel's delete button,
-  // which doesn't need the found/not-found signal.
-  deleteByName(name: string): void {
-    this.entries = this.entries.filter((e) => e.name !== name);
   }
   snapshotSeed(): void {
     this.seed = this.entries.map(cloneEntry);
@@ -259,17 +269,24 @@ async function main() {
 
     loadingEl.remove();
 
-    const lexiconPanel = createLexiconPanel({
-      getEntries: () => lexicon.getEntries(),
-      onDelete: (name) => lexicon.deleteByName(name),
-      onReset: () => lexicon.reset(),
-      renderRegion: tsModule.renderRegion,
+    const notebook = createNotebook({
+      placeholder: "Enter a COMPUTE, REGISTER, CHECK, SHOW, or UNREGISTER statement…",
+      onSubmit: (source) => handleSubmit(source, ts, tsModule, notebook),
     });
 
-    const notebook = createNotebook({
-      placeholder: "Enter a COMPUTE, REGISTER, or CHECK statement…",
-      onSubmit: (source) => handleSubmit(source, ts, tsModule, notebook, lexiconPanel),
-    });
+    // Wire the hints-card Reset button to the lexicon's seed snapshot.
+    // Confirm before destroying — without the always-visible lexicon
+    // panel, users can't see what they're about to lose.
+    const resetBtn = document.getElementById("reset-lexicon-btn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", () => {
+        if (!lexicon.isDirty()) return;
+        const ok = window.confirm(
+          "Reset the lexicon to its seed state? Any entries you've registered (and any seed entries you've UNREGISTERed) will be undone."
+        );
+        if (ok) lexicon.reset();
+      });
+    }
 
     const searchPanel = createSearchPanel({
       samples: SAMPLES,
@@ -286,7 +303,6 @@ async function main() {
       },
     });
 
-    container.appendChild(lexiconPanel.element);
     container.appendChild(notebook.element);
     container.appendChild(searchPanel.element);
 
@@ -304,8 +320,7 @@ async function handleSubmit(
   source: string,
   ts: ReturnType<TsRuntimeApi["TrueSpeech"] extends new (...a: any) => infer R ? () => R : never>,
   tsModule: TsRuntimeApi,
-  notebook: ReturnType<typeof createNotebook>,
-  lexiconPanel: ReturnType<typeof createLexiconPanel>
+  notebook: ReturnType<typeof createNotebook>
 ) {
   const trimmed = source.trim();
   if (trimmed.length === 0) return;
@@ -334,10 +349,19 @@ async function handleSubmit(
         break;
       case "register":
         notebook.addCell(renderRegisterCell(trimmed, result));
-        lexiconPanel.refresh();
         break;
       case "check":
         notebook.addCell(renderCheckCell(trimmed, result, tsModule));
+        break;
+      case "show":
+        if (result.subject === "lexicon") {
+          notebook.addCell(renderShowLexiconCell(trimmed, result));
+        } else {
+          notebook.addCell(renderShowSchemaCell(trimmed, result));
+        }
+        break;
+      case "unregister":
+        notebook.addCell(renderUnregisterCell(trimmed, result));
         break;
     }
   } catch (err: unknown) {
@@ -750,6 +774,309 @@ function renderErrorCell(
       pre.textContent = err.message;
     }
     output.appendChild(pre);
+  }
+  return cell;
+}
+
+// ===========================================================================
+// SHOW LEXICON cell — list view (no filter) or detail view (with filter)
+// ===========================================================================
+
+function renderShowLexiconCell(
+  source: string,
+  result: { statement: "show"; subject: "lexicon"; entries: LexiconEntry[]; filter?: string }
+): HTMLElement {
+  const { cell, output } = renderCellShell(source, "show-lexicon");
+
+  // Filtered + not found: soft informational note. The runtime returns
+  // an empty entries array for this case (not an error).
+  if (result.filter && result.entries.length === 0) {
+    const note = document.createElement("p");
+    note.className = "nb-soft-note";
+    note.textContent = `· No entry named "${result.filter}"`;
+    output.appendChild(note);
+    return cell;
+  }
+
+  // Unfiltered + empty: just say so. Lexicon could be empty if every
+  // seed entry has been UNREGISTERed.
+  if (result.entries.length === 0) {
+    const note = document.createElement("p");
+    note.className = "nb-soft-note";
+    note.textContent = "· Lexicon is empty.";
+    output.appendChild(note);
+    return cell;
+  }
+
+  // Filtered + one match: detail view. Full impacts (regions) or
+  // full BEFORE/AFTER regimes (boundaries) plus the change description.
+  if (result.filter) {
+    output.appendChild(renderLexiconEntryDetail(result.entries[0]));
+    return cell;
+  }
+
+  // Unfiltered, ≥1 entries: compact table view.
+  output.appendChild(renderLexiconListTable(result.entries));
+  return cell;
+}
+
+function renderLexiconListTable(entries: LexiconEntry[]): HTMLElement {
+  const table = document.createElement("table");
+  table.className = "data-table nb-show-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const col of ["Kind", "Name", "Scope", "Summary"]) {
+    const th = document.createElement("th");
+    th.textContent = col;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const e of entries) {
+    const tr = document.createElement("tr");
+
+    const kindTd = document.createElement("td");
+    const tag = document.createElement("span");
+    tag.className = `kind-tag kind-${e.kind}`;
+    tag.textContent = e.kind;
+    kindTd.appendChild(tag);
+    tr.appendChild(kindTd);
+
+    const nameTd = document.createElement("td");
+    nameTd.className = "nb-show-name";
+    nameTd.textContent = e.name;
+    tr.appendChild(nameTd);
+
+    const scopeTd = document.createElement("td");
+    scopeTd.className = "nb-show-scope";
+    scopeTd.textContent = scopeSummary(e);
+    tr.appendChild(scopeTd);
+
+    const summaryTd = document.createElement("td");
+    summaryTd.className = "nb-show-summary";
+    summaryTd.textContent = entrySummary(e);
+    tr.appendChild(summaryTd);
+
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+
+  const wrap = document.createElement("div");
+  wrap.className = "nb-result-table-wrap";
+  wrap.appendChild(table);
+  const caption = document.createElement("div");
+  caption.className = "nb-result-caption";
+  caption.textContent = `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`;
+  wrap.appendChild(caption);
+  return wrap;
+}
+
+function scopeSummary(e: LexiconEntry): string {
+  if (e.kind === "region") {
+    // Show the metric(s) and time range of the first impact; multi-impact
+    // entries get an "and N more" suffix.
+    if (e.impacts.length === 0) return "—";
+    const first = e.impacts[0];
+    const timeStr = `${first.region.timeStart} → ${first.region.timeEnd}`;
+    const tail = e.impacts.length > 1 ? ` (+${e.impacts.length - 1} more)` : "";
+    return `${first.metric} · ${timeStr}${tail}`;
+  }
+  const scope = e.constraints.length > 0
+    ? " · " + e.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")
+    : "";
+  return `${e.metrics.join(", ")} · cut at ${e.at}${scope}`;
+}
+
+function entrySummary(e: LexiconEntry): string {
+  if (e.kind === "region") {
+    return e.description.length > 80 ? e.description.slice(0, 77) + "…" : e.description;
+  }
+  return `before: ${e.before.label} → after: ${e.after.label}`;
+}
+
+function formatConstraintValue(v: string | number | (string | number)[]): string {
+  if (Array.isArray(v)) {
+    return `(${v.map((x) => (typeof x === "string" ? `'${x}'` : String(x))).join(", ")})`;
+  }
+  return typeof v === "string" ? `'${v}'` : String(v);
+}
+
+function renderLexiconEntryDetail(e: LexiconEntry): HTMLElement {
+  const wrap = document.createElement("section");
+  wrap.className = "nb-show-detail";
+
+  const header = document.createElement("div");
+  header.className = "nb-show-detail-header";
+  const tag = document.createElement("span");
+  tag.className = `kind-tag kind-${e.kind}`;
+  tag.textContent = e.kind;
+  header.appendChild(tag);
+  const name = document.createElement("span");
+  name.className = "nb-show-detail-name";
+  name.textContent = e.name;
+  header.appendChild(name);
+  wrap.appendChild(header);
+
+  if (e.kind === "region") {
+    const meta = document.createElement("p");
+    meta.className = "nb-show-detail-meta";
+    meta.textContent = `${e.impacts.length} impact${e.impacts.length === 1 ? "" : "s"}`;
+    wrap.appendChild(meta);
+
+    const impactList = document.createElement("ul");
+    impactList.className = "nb-show-impacts";
+    for (const impact of e.impacts) {
+      const li = document.createElement("li");
+      const scope = impact.region.constraints.length > 0
+        ? " AND " + impact.region.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")
+        : "";
+      li.textContent = `${impact.metric} · ${impact.region.timeStart} → ${impact.region.timeEnd}${scope}`;
+      impactList.appendChild(li);
+    }
+    wrap.appendChild(impactList);
+
+    const desc = document.createElement("p");
+    desc.className = "nb-show-detail-desc";
+    desc.textContent = `"${e.description}"`;
+    wrap.appendChild(desc);
+  } else {
+    const meta = document.createElement("p");
+    meta.className = "nb-show-detail-meta";
+    const scope = e.constraints.length > 0
+      ? ` · ${e.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")}`
+      : "";
+    meta.textContent = `Cut at ${e.at} · impacts ${e.metrics.join(", ")}${scope}`;
+    wrap.appendChild(meta);
+
+    const regimes = document.createElement("div");
+    regimes.className = "regimes";
+    regimes.appendChild(renderRegime("before", e.before));
+    regimes.appendChild(renderRegime("after", e.after));
+    wrap.appendChild(regimes);
+
+    if (e.changeDescription) {
+      const change = document.createElement("p");
+      change.className = "nb-show-detail-change";
+      change.textContent = `Change: "${e.changeDescription}"`;
+      wrap.appendChild(change);
+    }
+  }
+
+  return wrap;
+}
+
+// ===========================================================================
+// SHOW SCHEMA cell — per-metric grouped sections
+// ===========================================================================
+
+function renderShowSchemaCell(
+  source: string,
+  result: { statement: "show"; subject: "schema"; metrics: MetricSummary[] }
+): HTMLElement {
+  const { cell, output } = renderCellShell(source, "show-schema");
+
+  if (result.metrics.length === 0) {
+    const note = document.createElement("p");
+    note.className = "nb-soft-note";
+    note.textContent = "· No metrics in the semantic model.";
+    output.appendChild(note);
+    return cell;
+  }
+
+  for (const m of result.metrics) {
+    output.appendChild(renderMetricBlock(m));
+  }
+  return cell;
+}
+
+function renderMetricBlock(m: MetricSummary): HTMLElement {
+  const wrap = document.createElement("section");
+  wrap.className = "nb-metric-block";
+
+  const header = document.createElement("div");
+  header.className = "nb-metric-header";
+  const name = document.createElement("span");
+  name.className = "nb-metric-name";
+  name.textContent = m.name;
+  header.appendChild(name);
+  if (m.primaryTime) {
+    const primary = document.createElement("span");
+    primary.className = "nb-metric-primary";
+    primary.textContent = `primary time: ${m.primaryTime}`;
+    header.appendChild(primary);
+  }
+  wrap.appendChild(header);
+
+  if (m.description) {
+    const desc = document.createElement("p");
+    desc.className = "nb-metric-desc";
+    desc.textContent = m.description;
+    wrap.appendChild(desc);
+  }
+
+  if (m.dimensions.length > 0) {
+    const table = document.createElement("table");
+    table.className = "data-table nb-metric-dims";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const col of ["Dimension", "Type", "Dataset"]) {
+      const th = document.createElement("th");
+      th.textContent = col;
+      headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (const d of m.dimensions) {
+      const tr = document.createElement("tr");
+      const nameTd = document.createElement("td");
+      nameTd.innerHTML = `<code>${d.name}</code>`;
+      tr.appendChild(nameTd);
+      const typeTd = document.createElement("td");
+      typeTd.textContent = d.isTime
+        ? d.name === m.primaryTime
+          ? "time (primary)"
+          : "time"
+        : "categorical";
+      tr.appendChild(typeTd);
+      const datasetTd = document.createElement("td");
+      datasetTd.textContent = d.dataset;
+      tr.appendChild(datasetTd);
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+  }
+
+  return wrap;
+}
+
+// ===========================================================================
+// UNREGISTER cell — confirmation (found) or soft note (not found)
+// ===========================================================================
+
+function renderUnregisterCell(
+  source: string,
+  result: { statement: "unregister"; name: string; found: boolean }
+): HTMLElement {
+  const { cell, output } = renderCellShell(source, "unregister");
+
+  if (result.found) {
+    const banner = document.createElement("div");
+    banner.className = "nb-register-banner";
+    const msg = document.createElement("span");
+    msg.className = "nb-register-msg";
+    msg.textContent = `✓ Unregistered "${result.name}"`;
+    banner.appendChild(msg);
+    output.appendChild(banner);
+  } else {
+    const note = document.createElement("p");
+    note.className = "nb-soft-note";
+    note.textContent = `· No entry named "${result.name}" — nothing to remove.`;
+    output.appendChild(note);
   }
   return cell;
 }
