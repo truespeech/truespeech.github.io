@@ -98,168 +98,15 @@ code {
   background: #ccc;
 }
 
-/* Examples panel (v0.3.0 sandbox): grouped vertical list of canned
-   queries with per-card Run + Copy actions. Shows a dirty-state alert
-   when the lexicon has drifted from its seed. */
-
-.examples-panel {
-  margin: 0 0 16px;
-}
-
-.examples-alert {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #fff7e6;
-  border: 1px solid #f0c060;
-  border-radius: 4px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-}
-
-.examples-alert-msg {
-  flex: 1;
-  font-size: 13px;
-  color: #6b4500;
-  line-height: 1.4;
-}
-
-.examples-alert-reset {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b4500;
-  background: #ffe9b8;
-  border: 1px solid #d8a64a;
-  border-radius: 3px;
-  padding: 5px 12px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s ease;
-}
-
-.examples-alert-reset:hover {
-  background: #f8d98c;
-}
-
-.examples-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.examples-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.examples-group-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #777;
-  margin: 0 0 2px;
-}
-
-.example-card {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
-  border-radius: 5px;
-  padding: 10px 12px;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.example-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.example-card-label {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.example-card-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.example-card-btn {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 11px;
-  font-weight: 600;
-  background: #fff;
-  border: 1px solid #c8c8c8;
-  border-radius: 3px;
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.example-card-btn:hover {
-  background: #ececec;
-  border-color: #999;
-}
-
-.example-card-btn-run {
-  color: #1f4d1f;
-  background: #e8f5e8;
-  border-color: #b8d8b8;
-}
-
-.example-card-btn-run:hover {
-  background: #d8eed8;
-}
-
-.example-card-explanation {
-  margin: 6px 0 6px;
-  font-size: 12px;
-  color: #555;
-  line-height: 1.4;
-}
-
-.example-card-command {
-  margin: 0;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #2a2a2a;
-  background: #f0f0f0;
-  border: 1px solid #d8d8d8;
-  border-radius: 3px;
-  padding: 6px 8px;
-  overflow-x: auto;
-  white-space: pre;
-}
-
-/* Dirty-state visual treatment: amber tint on every card so the
-   "may not match seed" feeling carries through the whole panel, not
-   just the alert. */
-
-.examples-panel.is-dirty .example-card {
-  background: #fdf6e9;
-  border-color: #ead9b0;
-}
-
-.examples-panel.is-dirty .example-card-explanation {
-  color: #7a6438;
-}
-
-.examples-panel.is-dirty .example-card-command {
-  background: #f5ead0;
-  border-color: #d8c69a;
-}
-
-/* Lexicon panel */
+/* Lexicon panel — uses the unified panel chrome (cream + warm-gray
+   border) so the lexicon, notebook, and search-panel all read as the
+   same kind of element. Entries stack as rows separated by a subtle
+   warm-gray divider. */
 
 .lexicon-panel {
-  background: #fafafa;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background: #fdfcf6;
+  border: 1px solid #d8d4c5;
+  border-radius: 6px;
   margin-bottom: 16px;
 }
 
@@ -267,8 +114,10 @@ code {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 10px 14px;
+  background: #f8f6ed;
+  border-bottom: 1px solid #d8d4c5;
+  border-radius: 6px 6px 0 0;
 }
 
 .lexicon-title {
@@ -276,20 +125,22 @@ code {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #444;
+  color: #555;
 }
 
 .lexicon-count {
   font-size: 12px;
   color: #888;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
 }
 
 .lexicon-reset {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 11px;
-  color: #444;
+  font-weight: 600;
+  color: #555;
   background: #fff;
-  border: 1px solid #ccc;
+  border: 1px solid #c8c4b3;
   border-radius: 3px;
   padding: 3px 10px;
   cursor: pointer;
@@ -297,8 +148,8 @@ code {
 }
 
 .lexicon-reset:hover {
-  background: #f0f0f0;
-  border-color: #aaa;
+  background: #f0ece0;
+  border-color: #8a6d3b;
 }
 
 .lexicon-entries {
@@ -307,7 +158,7 @@ code {
 }
 
 .lexicon-empty {
-  padding: 14px 12px;
+  padding: 14px;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 12px;
   color: #888;
@@ -317,8 +168,8 @@ code {
 .lexicon-entry {
   display: flex;
   align-items: flex-start;
-  padding: 10px 12px;
-  border-bottom: 1px solid #eee;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e8e4d4;
   gap: 8px;
 }
 
@@ -330,7 +181,7 @@ code {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -351,13 +202,11 @@ code {
 .lexicon-entry-impact {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 12px;
-  color: #444;
-  background: #ececec;
+  color: #555;
+  background: #f0ece0;
   padding: 1px 6px;
   border-radius: 3px;
 }
-
-/* Removed: replaced by shared .kind-tag rules at the end of the file. */
 
 .lexicon-entry-desc {
   font-size: 12px;
@@ -1611,5 +1460,308 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 
   .ref-content {
     max-width: none;
+  }
+}
+
+/* ===========================================================================
+   New Sandbox (v0.3.0 page restructure) — data-context section + search-
+   based sample library that lives below the notebook.
+
+   The lexicon panel and notebook keep their existing styles; only the
+   page chrome and search panel are new here.
+   =========================================================================== */
+
+/* Sandbox data-context: a compact orientation block at the top of
+   the page. One narrative paragraph + two compact data tables side
+   by side. */
+
+.sandbox-context {
+  margin: 0 0 28px;
+}
+
+.sandbox-context h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  margin: 0 0 10px;
+}
+
+.sandbox-context p {
+  margin: 0 0 16px;
+  color: #333;
+  max-width: 880px;
+}
+
+.sandbox-context-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Shared data-table style: used by the data-context's metric/dimension
+   tables and (eventually) any tabular display in the sandbox. Same
+   visual language as the reference page's .ref-grid. */
+
+.data-table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+  color: #2a2a2a;
+}
+
+.data-table caption {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+  text-align: left;
+  margin-bottom: 6px;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #d8d4c5;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  background: #f0ece0;
+  font-weight: 600;
+  color: #555;
+}
+
+.data-table td code {
+  background: #f0ece0;
+  font-size: 12px;
+}
+
+/* Workspace container — the demo mount point. The lexicon panel,
+   notebook, and search panel are injected by main.ts. */
+
+.sandbox-workspace {
+  margin: 0 0 16px;
+}
+
+/* Search panel — wrapped in the unified panel chrome so it reads
+   as the same kind of element as the lexicon panel and the notebook.
+   Header bar with title, controls inside, results table below. */
+
+.search-panel {
+  background: #fdfcf6;
+  border: 1px solid #d8d4c5;
+  border-radius: 6px;
+  margin: 16px 0 0;
+  overflow: hidden;
+}
+
+.search-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: #f8f6ed;
+  border-bottom: 1px solid #d8d4c5;
+}
+
+.search-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin: 0;
+}
+
+.search-panel-help {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}
+
+.search-panel-controls {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px 14px 0;
+}
+
+.search-panel-input {
+  flex: 1;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #c8c4b3;
+  border-radius: 4px;
+  padding: 7px 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.search-panel-input:focus {
+  border-color: #8a6d3b;
+}
+
+.search-panel-input:disabled {
+  background: #f3f1e6;
+  color: #888;
+}
+
+.search-panel-random-btn {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  background: #fff;
+  border: 1px solid #c8c4b3;
+  border-radius: 4px;
+  padding: 0 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.search-panel-random-btn:hover {
+  background: #f0ece0;
+  border-color: #8a6d3b;
+}
+
+.search-panel-status {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin: 10px 14px 0;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+.search-panel-results {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 4px;
+}
+
+.search-panel-empty {
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+  padding: 8px 14px 12px;
+  margin: 0;
+}
+
+.search-panel-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+.search-result-row {
+  border-top: 1px solid #e8e4d4;
+}
+
+.search-result-code-cell {
+  padding: 10px 14px;
+  vertical-align: top;
+  width: 42%;
+}
+
+.search-result-group {
+  display: inline-block;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+  background: #f0ece0;
+  padding: 2px 7px;
+  border-radius: 3px;
+  margin-bottom: 6px;
+}
+
+.search-result-code {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #2a2a2a;
+  background: #fff;
+  border: 1px solid #d8d4c5;
+  border-radius: 3px;
+  padding: 6px 8px;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+
+.search-result-desc-cell {
+  padding: 10px 14px;
+  vertical-align: top;
+}
+
+.search-result-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.search-result-actions-cell {
+  padding: 10px 14px 10px 0;
+  vertical-align: top;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.search-result-btn {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fff;
+  border: 1px solid #c8c4b3;
+  border-radius: 3px;
+  padding: 4px 10px;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.search-result-btn:first-child {
+  margin-left: 0;
+}
+
+.search-result-btn:hover {
+  background: #f0ece0;
+  border-color: #8a6d3b;
+}
+
+.search-result-btn-run {
+  color: #1f4d1f;
+  background: #e8f5e8;
+  border-color: #b8d8b8;
+}
+
+.search-result-btn-run:hover {
+  background: #d8eed8;
+  border-color: #5b8d5b;
+}
+
+@media (max-width: 720px) {
+  .sandbox-context-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .search-result-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .search-result-code-cell,
+  .search-result-desc-cell,
+  .search-result-actions-cell {
+    width: auto;
+    padding: 10px 14px;
+    text-align: left;
   }
 }

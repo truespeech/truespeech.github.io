@@ -9,243 +9,41 @@
 <body>
   <div class="page">
     <div class="intro">
-      <p class="kicker">True Speech · v0.3.0</p>
+      <p class="kicker">True Speech · v0.3.0 · Sandbox</p>
       <h1>truespeech Sandbox</h1>
-      <p class="lede">truespeech is a small language for asking precise analytical questions on top of a semantic layer, plus a queryable <em>lexicon</em> of contextual knowledge about the data. The runtime sits in front of the semantic layer in the data stack: <em>database → semantic layer → truespeech</em>.</p>
-      <p>Type a statement into the top panel. Use <code>compute</code> to run a metric query, <code>register</code> to add a lexicon entry (a <a href="#regions">region</a> or a <a href="#boundaries">boundary</a>), or <code>check</code> to look up what the lexicon knows about a slice. The runtime parses, validates against the semantic model, generates SQL where needed, and executes against an in-browser DuckDB. Lexicon entries are reconciled against every <code>compute</code> automatically — per-row, so the cells that are actually affected get flagged inline. Errors are reported with Rust-style caret diagnostics. See the <a href="#regions">language reference</a> below.</p>
-      <p><a href="https://github.com/truespeech/truespeech">View source on GitHub</a> · Pinned to <code>truespeech@v0.3.0</code> · The original <a href="truespeech.html">v0.1.0 sandbox</a> remains untouched · Part of the <a href="/">truespeech</a> project</p>
+      <p class="lede">A scratch space for tinkering with truespeech. The lexicon is preloaded with a handful of entries from the operating life of a fictional retailer; the notebook below is yours to play in. Looking to learn the language? Start with the <a href="tutorial.html">tutorial</a>. Need the full grammar? See the <a href="reference.html">reference</a>.</p>
+      <p>Pinned to <code>truespeech@v0.3.0</code> · <a href="https://github.com/truespeech/truespeech">source on GitHub</a></p>
     </div>
-    <nav class="section-nav" aria-label="Sandbox sections">
-      <a href="#try-it" data-nav-link>Try it</a>
-      <a href="#learn-it" data-nav-link>Learn it</a>
-      <a href="#inspect-it" data-nav-link>Inspect it</a>
-    </nav>
 
-    <section id="try-it" class="page-section" data-nav-section>
-      <h2 class="section-heading">Try it</h2>
-      <p class="section-lede">Browse the seed lexicon, run canned queries against it, or type your own. Results appear in the notebook below as you go.</p>
+    <section id="data-context" class="sandbox-context">
+      <h2>The data</h2>
+      <p><strong>NorthStar Goods</strong> is a mid-size US retailer with two product tiers (<code>consumer</code>, <code>enterprise</code>) operating across four regions. The corpus is ~200 rows of order data, Jan 2025 through Apr 2026, served from an in-browser DuckDB-WASM instance through an OSI semantic layer.</p>
+      <div class="sandbox-context-grid">
+        <table class="data-table">
+          <caption>Metrics</caption>
+          <thead><tr><th>Name</th><th>Measures</th></tr></thead>
+          <tbody>
+            <tr><td><code>total_sales</code></td><td>Gross sales revenue (SUM of order amount).</td></tr>
+            <tr><td><code>average_order_value</code></td><td>Average order amount; methodology shifted Jan 1, 2026 (see lexicon).</td></tr>
+            <tr><td><code>order_count</code></td><td>Count of distinct orders.</td></tr>
+          </tbody>
+        </table>
+        <table class="data-table">
+          <caption>Dimensions</caption>
+          <thead><tr><th>Name</th><th>Splits by</th></tr></thead>
+          <tbody>
+            <tr><td><code>order_date</code></td><td>Primary time; all <code>OVER</code> clauses bind here.</td></tr>
+            <tr><td><code>region</code></td><td>northeast, west, southeast, midwest.</td></tr>
+            <tr><td><code>product_tier</code></td><td>consumer or enterprise.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="workspace" class="sandbox-workspace">
       <div id="demo"></div>
-    </section>
-
-    <section id="learn-it" class="page-section reference" data-nav-section>
-      <h2 class="section-heading">Learn it</h2>
-      <p class="section-lede">The full language reference — every construct, its grammar, and the trigger semantics that produce what you see in the notebook.</p>
-
-      <h2 id="regions">Regions</h2>
-      <p>A region is a contiguous slice of your data — a time interval plus optional categorical constraints — over which one or more metrics are affected. The region syntax is also used by <code>compute</code> and <code>check</code> to address a slice.</p>
-      <pre class="code-hl"><span class="cmt"># grammar</span>
-<span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]</pre>
-
-      <h3>Time expression</h3>
-      <p>The first clause of <code>over</code> is always the metric's primary time axis, written in a small calendar mini-language:</p>
-      <pre class="code-hl">2026                          <span class="cmt">-- the year</span>
-2026-Q1                       <span class="cmt">-- a quarter</span>
-2026-02                       <span class="cmt">-- a month</span>
-2026-02-15                    <span class="cmt">-- a day</span>
-2026-02-03 <span class="kw">to</span> 2026-02-10      <span class="cmt">-- a closed-inclusive range (same unit)</span>
-<span class="kw">until</span> 2026-Q1                 <span class="cmt">-- everything up to and including</span>
-<span class="kw">since</span> 2026-01-15              <span class="cmt">-- everything from that point onward</span>
-<span class="kw">all</span> <span class="kw">time</span>                      <span class="cmt">-- unbounded</span></pre>
-
-      <h3>Additional constraints</h3>
-      <p>After the time expression, additional constraints intersect with <code>and</code>:</p>
-      <pre class="code-hl"><span class="kw">and</span> region = <span class="str">'northeast'</span>
-<span class="kw">and</span> region <span class="kw">in</span> (<span class="str">'northeast'</span>, <span class="str">'west'</span>)
-<span class="kw">and</span> region <span class="kw">not</span> <span class="kw">in</span> (<span class="str">'midwest'</span>)
-<span class="kw">and</span> ship_date &gt;= 2026-02-01
-<span class="kw">and</span> ship_date <span class="kw">in</span> 2026-Q1                  <span class="cmt">-- in extends to time containment</span>
-<span class="kw">and</span> ship_date <span class="kw">in</span> 2026-02-01 <span class="kw">to</span> 2026-02-28</pre>
-
-      <h2 id="register-region"><span class="kw">register</span> region</h2>
-      <p>Adds a region entry to the lexicon — a curated fact about a patch of the data, scoped to one or more affected metrics, with a natural-language description. A region triggers a result value when that value's underlying input rows came from inside the patch.</p>
-      <pre class="code-hl"><span class="kw">register</span> <span class="kw">region</span> &lt;name&gt;
-  <span class="kw">impacting</span> &lt;metric&gt;[, &lt;metric&gt;...] <span class="kw">over</span> &lt;region&gt;
-  [<span class="kw">impacting</span> &lt;metric&gt;[, &lt;metric&gt;...] <span class="kw">over</span> &lt;region&gt;]...
-  <span class="kw">with</span> <span class="str">"&lt;description&gt;"</span></pre>
-
-      <h2 id="boundaries">Boundaries</h2>
-      <p>A boundary is a <em>cut</em> at an instant — a metric redefinition, a pricing change, a logging-pipeline switch. Data on either side of the cut is fine in isolation, but any result value that mixes inputs from <em>both sides</em> conflates two regimes. Boundaries trigger per-row: an analyst who has already disambiguated the grain gets no annotation; one who hasn't is alerted that the value mixes pre-cut and post-cut data.</p>
-
-      <h2 id="register-boundary"><span class="kw">register</span> boundary</h2>
-      <p>Adds a boundary entry. <code>at</code> takes a day-form date — quarter/month forms are rejected because boundaries are instants, not intervals. <code>before</code> and <code>after</code> are mandatory and each take two strings: a short label (rendered inline in result-row notes) and a longer description (rendered in reconciliation and historical footers). <code>with</code> is optional and overrides the runtime-composed change-description in spanning/straddling footers. Optional <code>and</code> constraints scope the cut to a sub-population.</p>
-      <pre class="code-hl"><span class="kw">register</span> <span class="kw">boundary</span> &lt;name&gt;
-  <span class="kw">at</span> &lt;date&gt; [<span class="kw">and</span> &lt;predicate&gt;...]
-  <span class="kw">impacting</span> &lt;metric&gt;[, &lt;metric&gt;...]
-  <span class="kw">before</span> <span class="str">"&lt;short label&gt;"</span> <span class="str">"&lt;long description&gt;"</span>
-  <span class="kw">after</span>  <span class="str">"&lt;short label&gt;"</span> <span class="str">"&lt;long description&gt;"</span>
-  [<span class="kw">with</span>  <span class="str">"&lt;change description&gt;"</span>]</pre>
-
-      <h3>Trigger semantics</h3>
-      <p>The post-cut regime is treated as the operator's <em>now</em> — assumed normal and not annotated. The pre-cut regime is history; queries that live in it get an informational footer. Queries that span the cut get per-row regime context, and rows whose own interval straddles the cut get a harsher flag.</p>
-      <table class="trigger-matrix">
-        <thead>
-          <tr><th>Query shape</th><th>Treatment</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Entirely post-cut (<em>now</em>)</td><td>silent — no flag, no footer</td></tr>
-          <tr><td>Entirely pre-cut (historical)</td><td>informational footer composed from BEFORE/AFTER</td></tr>
-          <tr><td>Spans cut, every row cleanly on one side</td><td>amber warn on each row, regime label inline</td></tr>
-          <tr><td>Spans cut, a row straddles</td><td>red error on the straddler; warn on clean rows</td></tr>
-        </tbody>
-      </table>
-      <p>A row's interval <code>[start, end]</code> straddles the cut at <code>T</code> iff <code>start &lt; T ≤ end</code>. The "≤" on the right makes "T is the first day of the new regime" the natural reading — a row that starts exactly at <code>T</code> contains only post-cut data and does not trigger. Grain matters:</p>
-      <pre class="code-hl"><span class="cmt">-- given REGISTER boundary aov_redef AT 2026-01-01 IMPACTING aov BEFORE … AFTER …</span>
-<span class="kw">compute</span> aov <span class="kw">over</span> 2026-Q1                                <span class="cmt">-- entirely post-cut → silent</span>
-<span class="kw">compute</span> aov <span class="kw">over</span> 2025-Q4                                <span class="cmt">-- entirely pre-cut → historical footer</span>
-<span class="kw">compute</span> aov <span class="kw">over</span> 2025-Q4 <span class="kw">to</span> 2026-Q1                  <span class="cmt">-- 1 row spans cut → error</span>
-<span class="kw">compute</span> aov <span class="kw">over</span> 2025-Q4 <span class="kw">to</span> 2026-Q1 <span class="kw">group</span> <span class="kw">by</span> quarter <span class="cmt">-- 2 rows, regime label each → warn</span>
-<span class="kw">compute</span> aov <span class="kw">over</span> 2025-Q4 <span class="kw">to</span> 2026-Q1 <span class="kw">group</span> <span class="kw">by</span> month   <span class="cmt">-- 6 rows, regime label each → warn</span></pre>
-      <p>The historical-context footer wording is composed by the runtime from the registered <code>before</code> and <code>after</code> descriptions — there's no per-entry override for it, because the historical pattern is structurally <em>"you are reading a previous regime; here's what now looks like."</em> Override the <em>change-description</em> footer (shown for spanning/straddling queries) by supplying <code>with "&lt;sentence&gt;"</code>.</p>
-
-      <h2 id="compute"><span class="kw">compute</span></h2>
-      <p>Runs a metric query over a region. Reconciled against the lexicon automatically — relevant entries (region overlaps and boundary crossings) arrive alongside the result, indexed per row so only the cells that are actually affected are flagged.</p>
-      <pre class="code-hl"><span class="kw">compute</span> &lt;metric&gt;
-  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]
-  [<span class="kw">group</span> <span class="kw">by</span> &lt;field&gt;[, ...]]
-  [<span class="kw">order</span> <span class="kw">by</span> &lt;field&gt; [<span class="kw">asc</span>|<span class="kw">desc</span>][, ...]]
-  [<span class="kw">limit</span> &lt;n&gt;]</pre>
-
-      <h3>Group by</h3>
-      <p>Bare grain words refer implicitly to the metric's primary time:</p>
-      <pre class="code-hl"><span class="kw">group</span> <span class="kw">by</span> month                <span class="cmt">-- primary time at month grain</span>
-<span class="kw">group</span> <span class="kw">by</span> region               <span class="cmt">-- categorical dimension</span>
-<span class="kw">group</span> <span class="kw">by</span> ship_date:week       <span class="cmt">-- explicit time dimension with grain</span></pre>
-
-      <h2 id="check"><span class="kw">check</span></h2>
-      <p>Looks up matching lexicon entries for a region — no database hit, no metric computation. Useful for asking <em>"what do we know about this slice of the data?"</em> without pulling the numbers. Returns both region overlaps and boundary crossings.</p>
-      <pre class="code-hl"><span class="kw">check</span> &lt;metric&gt;
-  <span class="kw">over</span> &lt;time-expr&gt; [<span class="kw">and</span> &lt;predicate&gt;...]</pre>
-
-    </section>
-
-    <section id="inspect-it" class="page-section reference" data-nav-section>
-      <h2 class="section-heading">Inspect it</h2>
-      <p class="section-lede">The supporting context — the semantic model the runtime queries against, and the schema of the in-browser DuckDB the queries hit.</p>
-
-      <h2 id="semantic-model">Semantic model</h2>
-      <p>The semantic model the runtime queries against. It defines two metrics (<code>total_sales</code> and <code>average_order_value</code>) and three dimensions (<code>order_date</code>, <code>region</code>, <code>product_tier</code>) over a single <code>orders</code> dataset. <code>order_date</code> is marked as the primary time dimension — that's what the bare-grain <code>group by month</code> and the calendar-literal forms in <code>over</code> bind to.</p>
-      <pre class="code-hl">semantic_model:
-  - name: retail_sales
-    description: Sales analytics model for retail operations
-    ai_context:
-      instructions: "Use this model for sales analysis and customer insights"
-    datasets:
-      - name: orders
-        source: orders
-        primary_key: [order_id]
-        fields:
-          - name: order_id
-            expression:
-              dialects:
-                - dialect: ANSI_SQL
-                  expression: "order_id"
-          - name: order_date
-            expression:
-              dialects:
-                - dialect: ANSI_SQL
-                  expression: "order_date"
-            dimension:
-              is_time: true
-              is_primary: true
-            description: Date the order was placed
-            ai_context:
-              synonyms:
-                - "date"
-                - "sale date"
-          - name: region
-            expression:
-              dialects:
-                - dialect: ANSI_SQL
-                  expression: "region"
-            dimension:
-              is_time: false
-            description: Sales region
-            ai_context:
-              synonyms:
-                - "sales region"
-                - "territory"
-          - name: product_tier
-            expression:
-              dialects:
-                - dialect: ANSI_SQL
-                  expression: "product_tier"
-            dimension:
-              is_time: false
-            description: Product tier classification
-            ai_context:
-              synonyms:
-                - "tier"
-                - "product category"
-              instructions: "Values are 'enterprise' and 'consumer'"
-          - name: amount
-            expression:
-              dialects:
-                - dialect: ANSI_SQL
-                  expression: "amount"
-            description: Order amount in USD
-    metrics:
-      - name: total_sales
-        description: Total gross sales revenue
-        expression:
-          dialects:
-            - dialect: ANSI_SQL
-              expression: "SUM(orders.amount)"
-        ai_context:
-          synonyms:
-            - "sales"
-            - "revenue"
-            - "total revenue"
-      - name: average_order_value
-        description: Average value per order
-        expression:
-          dialects:
-            - dialect: ANSI_SQL
-              expression: "AVG(orders.amount)"
-        ai_context:
-          synonyms:
-            - "AOV"
-            - "average order size"
-          instructions: "Enterprise and consumer tiers have fundamentally
-            different price points; always scope to a specific product_tier
-            unless explicitly asked for a blended average."</pre>
-
-      <h2 id="database-schema">Database schema</h2>
-      <p>An in-browser DuckDB-WASM instance loaded with ~200 rows of sample sales data spanning January 2025 through April 2026.</p>
-      <pre class="code-hl">CREATE TABLE orders (
-    order_id      INTEGER PRIMARY KEY,
-    order_date    DATE NOT NULL,
-    region        VARCHAR(50) NOT NULL,
-    product_tier  VARCHAR(20) NOT NULL,
-    amount        DECIMAL(10, 2) NOT NULL
-);</pre>
     </section>
   </div>
   <script type="module" src="sandbox/dist/main.js"></script>
-  <script>
-    // Scroll-spy: highlight the nav link for whichever section is
-    // currently in view. rootMargin shrinks the intersection box so a
-    // section has to be roughly screen-center to count as "active",
-    // which keeps the highlight from flickering when section borders
-    // cross the viewport edges.
-    (function () {
-      const sections = document.querySelectorAll("section[data-nav-section]");
-      const links = document.querySelectorAll(".section-nav a[data-nav-link]");
-      const observer = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            const id = entry.target.id;
-            links.forEach((l) => l.classList.remove("active"));
-            const link = document.querySelector(
-              `.section-nav a[data-nav-link][href="#${id}"]`
-            );
-            if (link) link.classList.add("active");
-          }
-        },
-        { rootMargin: "-30% 0px -60% 0px" }
-      );
-      sections.forEach((s) => observer.observe(s));
-    })();
-  </script>
 </body>
 </html>

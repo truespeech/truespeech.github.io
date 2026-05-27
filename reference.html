@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>truespeech Reference · v0.3.0</title>
+  <title>truespeech Reference · v0.4.0</title>
   <link rel="stylesheet" href="truespeech/style.css">
 </head>
 <body>
   <div class="ref-page">
     <header class="ref-header">
-      <p class="kicker">True Speech · v0.3.0 · Reference</p>
+      <p class="kicker">True Speech · v0.4.0 · Reference</p>
       <h1 class="ref-title">truespeech Language Reference</h1>
-      <p class="ref-sub">The canonical reference for truespeech v0.3.0: syntax, semantics, and the runtime API. Pinned to <code>truespeech@v0.3.0</code>. See also: <a href="sandbox.html">interactive sandbox</a> · <a href="https://github.com/truespeech/truespeech">source</a>.</p>
+      <p class="ref-sub">The canonical reference for truespeech v0.4.0: syntax, semantics, and the runtime API. Pinned to <code>truespeech@v0.4.0</code>. See also: <a href="sandbox.html">interactive sandbox</a> · <a href="https://github.com/truespeech/truespeech">source</a>.</p>
     </header>
 
     <button class="ref-toc-toggle" id="ref-toc-toggle" aria-controls="ref-toc" aria-expanded="false">Contents</button>
@@ -27,6 +27,9 @@
                 <li><a href="#register-region" data-toc>REGISTER region</a></li>
                 <li><a href="#register-boundary" data-toc>REGISTER boundary</a></li>
                 <li><a href="#check" data-toc>CHECK</a></li>
+                <li><a href="#show-lexicon" data-toc>SHOW LEXICON</a></li>
+                <li><a href="#show-schema" data-toc>SHOW SCHEMA</a></li>
+                <li><a href="#unregister" data-toc>UNREGISTER</a></li>
               </ol>
             </li>
             <li><a href="#over-clause" data-toc>The OVER clause</a>
@@ -88,16 +91,16 @@
           <span class="search-keywords" hidden>intro introduction what is truespeech stack semantic layer database analyst lexicon</span>
           <h2>Overview</h2>
           <p>truespeech is a small TypeScript language runtime that sits above a semantic layer (which itself sits above a database). It gives analysts two things: a precise query statement (<a href="#compute"><code>COMPUTE</code></a>) for expressing metric questions, and a curated <a href="#lexicon">lexicon</a> for annotating the data with contextual knowledge — what is anomalous, what changed when, which metric definitions differ across history. The runtime parses statements, validates them against the semantic model, generates SQL via the semantic-layer adapter, runs it through the database adapter, and reconciles the result against the lexicon — so the rows you see are flagged inline when something in the lexicon applies.</p>
-          <p>The stack: <code>database → semantic layer → truespeech</code>. The runtime is decoupled from any specific implementation of those underlayers via three <a href="#adapter-interfaces">adapter interfaces</a> (<code>SemanticLayerAdapter</code>, <code>DatabaseAdapter</code>, <code>LexiconAdapter</code>). The lexicon adapter is optional — plain <code>COMPUTE</code> works without it; <a href="#register-region"><code>REGISTER</code></a> and <a href="#check"><code>CHECK</code></a> require it.</p>
+          <p>The stack: <code>database → semantic layer → truespeech</code>. The runtime is decoupled from any specific implementation of those underlayers via three <a href="#adapter-interfaces">adapter interfaces</a> (<code>SemanticLayerAdapter</code>, <code>DatabaseAdapter</code>, <code>LexiconAdapter</code>). The lexicon adapter is optional — plain <code>COMPUTE</code> works without it; <a href="#register-region"><code>REGISTER</code></a>, <a href="#unregister"><code>UNREGISTER</code></a>, <a href="#check"><code>CHECK</code></a>, and <a href="#show-lexicon"><code>SHOW LEXICON</code></a> require it. <a href="#show-schema"><code>SHOW SCHEMA</code></a> reads only the semantic layer.</p>
         </section>
 
         <!-- ============================================================ -->
         <!-- Statements                                                   -->
         <!-- ============================================================ -->
         <section id="statements" data-ref-section>
-          <span class="search-keywords" hidden>statements grammar syntax compute register check</span>
+          <span class="search-keywords" hidden>statements grammar syntax compute register check show unregister introspection</span>
           <h2>Statements</h2>
-          <p>truespeech has three statement kinds, discriminated by the first keyword: <a href="#compute"><code>COMPUTE</code></a> for querying the data, <a href="#register-region"><code>REGISTER</code></a> for adding a lexicon entry, and <a href="#check"><code>CHECK</code></a> for looking up the lexicon. Keywords are case-insensitive; identifiers are case-sensitive.</p>
+          <p>truespeech has five statement kinds, discriminated by the first keyword. <a href="#compute"><code>COMPUTE</code></a> runs a metric query. <a href="#register-region"><code>REGISTER</code></a> adds a lexicon entry (region or boundary). <a href="#check"><code>CHECK</code></a> looks up lexicon entries for a region. <a href="#show-lexicon"><code>SHOW LEXICON</code></a> inspects the current lexicon and <a href="#show-schema"><code>SHOW SCHEMA</code></a> inspects the semantic-layer surface. <a href="#unregister"><code>UNREGISTER</code></a> drops a lexicon entry by name. Keywords are case-insensitive; identifiers are case-sensitive.</p>
           <p class="ref-note">Examples below use illustrative metric and dimension names chosen to make the construct concrete (<code>LTV</code>, <code>session_starts</code>, <code>ship_count</code>, <code>ship_date</code>, etc.). The <a href="sandbox.html">interactive sandbox</a> ships with a specific demo schema (<code>total_sales</code>, <code>average_order_value</code>, <code>order_count</code> over <code>region</code>, <code>product_tier</code>, <code>order_date</code>) — copying these examples verbatim into the sandbox will raise <code>unknown_metric</code>.</p>
 
           <section id="compute" data-ref-section>
@@ -110,7 +113,7 @@
   [<span class="kw">GROUP BY</span> &lt;field&gt;[, &lt;field&gt;]...]
   [<span class="kw">ORDER BY</span> &lt;field&gt; [<span class="kw">ASC</span>|<span class="kw">DESC</span>][, ...]]
   [<span class="kw">LIMIT</span> &lt;n&gt;]</pre>
-            <p>v0.3.0 accepts exactly one metric per <code>COMPUTE</code>; a second metric raises <code>incompatible_metrics</code>. See <a href="#over-clause">The OVER clause</a> for the time and constraint grammar shared by all three statements.</p>
+            <p>v0.4.0 accepts exactly one metric per <code>COMPUTE</code>; a second metric raises <code>incompatible_metrics</code>. See <a href="#over-clause">The OVER clause</a> for the time and constraint grammar shared by all three statements.</p>
 
             <h4 id="compute-group-by">GROUP BY</h4>
             <p>Three group-by shapes are accepted:</p>
@@ -190,6 +193,39 @@
 <span class="kw">CHECK</span> conversion_rate, order_count <span class="kw">OVER</span> 2026-02
 <span class="kw">CHECK</span> total_sales <span class="kw">OVER</span> <span class="kw">all</span> <span class="kw">time</span>     <span class="cmt">-- unbounded form (OVER is required)</span></pre>
             <p>For region entries you get one match per matching <code>IMPACTING</code> clause: if an entry impacts multiple of your queried metrics and they all overlap, you get multiple matches sharing the same <code>entry</code>. For boundary entries you get one match per (boundary, queried-metric) pair where the boundary applies to that metric and the query straddles the cut. At the <code>CHECK</code> level, every <code>BoundaryMatch</code>'s <code>side</code> is <code>"straddles"</code> (the query itself spans the cut).</p>
+          </section>
+
+          <section id="show-lexicon" data-ref-section>
+            <span class="search-keywords" hidden>show lexicon inspect entries describe list registered annotations introspection</span>
+            <h3>SHOW LEXICON</h3>
+            <p>Surfaces lexicon entries for inspection. Without a filter, returns every entry currently in the lexicon. With a name filter, returns the single matching entry (or an empty list if no such entry exists; non-throwing).</p>
+            <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">SHOW LEXICON</span> [&lt;name&gt;]</pre>
+            <pre class="code-hl"><span class="kw">SHOW LEXICON</span>                          <span class="cmt">-- every entry</span>
+<span class="kw">SHOW LEXICON</span> q1_data_quality_issue    <span class="cmt">-- one entry (or empty if not found)</span></pre>
+            <p>Returns a <a href="#result-types"><code>ShowLexiconResult</code></a> with the entry list and the echoed filter (if any). The entries are typed as the discriminated <a href="#lexicon-types"><code>LexiconEntry</code></a> union; consumers dispatch on <code>kind</code> to render region- vs boundary-shaped detail.</p>
+            <p>Requires a configured <a href="#adapter-interfaces"><code>LexiconAdapter</code></a>; throws otherwise.</p>
+          </section>
+
+          <section id="show-schema" data-ref-section>
+            <span class="search-keywords" hidden>show schema metrics dimensions semantic layer model describe introspection</span>
+            <h3>SHOW SCHEMA</h3>
+            <p>Surfaces the available metrics and the dimensions on each metric's dataset.</p>
+            <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">SHOW SCHEMA</span></pre>
+            <p>Returns a <a href="#result-types"><code>ShowSchemaResult</code></a> carrying one <code>MetricSummary</code> per metric: its name, optional description, primary-time dimension (if any), and the dimensions available on its dataset. The runtime does not de-duplicate dimensions across metrics — different metrics on different datasets can carry different dimensions, and the per-metric view is the more honest one. A caller can flatten and de-dup at render time if it wants a single dimension list.</p>
+            <p>Reads only from the semantic-layer adapter; no lexicon or database access. The lexicon adapter can be omitted.</p>
+          </section>
+
+          <section id="unregister" data-ref-section>
+            <span class="search-keywords" hidden>unregister remove delete drop lexicon entry by name</span>
+            <h3>UNREGISTER</h3>
+            <p>Drops a lexicon entry by name regardless of kind. Non-throwing — the result carries <code>found: false</code> if no entry by that name existed.</p>
+            <pre class="code-hl"><span class="cmt"># grammar</span>
+<span class="kw">UNREGISTER</span> &lt;name&gt;</pre>
+            <pre class="code-hl"><span class="kw">UNREGISTER</span> q1_data_quality_issue</pre>
+            <p>Returns an <a href="#result-types"><code>UnregisterResult</code></a> with the echoed name and a boolean <code>found</code>. The lexicon adapter's <code>remove(name)</code> method is the underlying call; embedders backing the lexicon with persistent storage should make <code>remove</code> idempotent and atomic.</p>
+            <p>Requires a configured <a href="#adapter-interfaces"><code>LexiconAdapter</code></a>; throws otherwise.</p>
           </section>
         </section>
 
@@ -391,8 +427,10 @@
             <pre class="code-hl"><span class="kw">interface</span> LexiconAdapter {
   add(entry: LexiconEntry): <span class="kw">Promise</span>&lt;<span class="kw">void</span>&gt;;
   list(): <span class="kw">Promise</span>&lt;LexiconEntry[]&gt;;
+  remove(name: <span class="kw">string</span>): <span class="kw">Promise</span>&lt;<span class="kw">boolean</span>&gt;;   <span class="cmt">// added in v0.4.0; returns whether anything was removed</span>
 }</pre>
-            <p>The adapter is a simple add/list pair — the runtime does all the matching, overlap and crossing math itself. <code>add</code> is called by <a href="#register-region"><code>REGISTER</code></a>; <code>list</code> is called by <a href="#check"><code>CHECK</code></a> and by reconciliation inside <a href="#compute"><code>COMPUTE</code></a>. Storage is up to the implementer (in-memory, SQLite, a database table); duplicate names are allowed at the adapter level.</p>
+            <p>The adapter is a small add/list/remove triple — the runtime does all the matching, overlap and crossing math itself. <code>add</code> is called by <a href="#register-region"><code>REGISTER</code></a>; <code>list</code> is called by <a href="#check"><code>CHECK</code></a>, <a href="#show-lexicon"><code>SHOW LEXICON</code></a>, and reconciliation inside <a href="#compute"><code>COMPUTE</code></a>; <code>remove</code> is called by <a href="#unregister"><code>UNREGISTER</code></a> and should return <code>true</code> iff an entry by that name was actually removed. Storage is up to the implementer (in-memory, SQLite, a database table); duplicate names are allowed at the adapter level, in which case <code>remove</code> by convention drops the first match (or all of them — implementer's call).</p>
+            <p><strong>Breaking change in v0.4.0:</strong> the <code>remove</code> method is new. Embedders updating from v0.3.0 need to add it; the simplest in-memory implementation is a one-line <code>findIndex</code> / <code>splice</code>.</p>
 
             <h4>OSI adapter</h4>
             <pre class="code-hl"><span class="kw">function</span> osiAdapter(runtime: OsiLikeRuntime): SemanticLayerAdapter;</pre>
@@ -403,7 +441,13 @@
             <span class="search-keywords" hidden>result types compute register check execute result discriminated union</span>
             <h3>Result types</h3>
             <p><code>execute()</code> returns a discriminated union, with the discriminator <code>statement</code>:</p>
-            <pre class="code-hl"><span class="kw">type</span> ExecuteResult = ComputeResult | RegisterResult | CheckResult;
+            <pre class="code-hl"><span class="kw">type</span> ExecuteResult =
+  | ComputeResult
+  | RegisterResult
+  | CheckResult
+  | ShowLexiconResult
+  | ShowSchemaResult
+  | UnregisterResult;
 
 <span class="kw">interface</span> ComputeResult {
   statement: <span class="str">"compute"</span>;
@@ -424,6 +468,32 @@
 <span class="kw">interface</span> CheckResult {
   statement: <span class="str">"check"</span>;
   matches: LexiconMatch[];             <span class="cmt">// matches across both entry kinds</span>
+}
+
+<span class="kw">interface</span> ShowLexiconResult {
+  statement: <span class="str">"show"</span>;
+  subject: <span class="str">"lexicon"</span>;
+  entries: LexiconEntry[];             <span class="cmt">// all entries, or [entry] / [] when filtered by name</span>
+  filter?: <span class="kw">string</span>;                    <span class="cmt">// echoes the optional name from SHOW LEXICON &lt;name&gt;</span>
+}
+
+<span class="kw">interface</span> ShowSchemaResult {
+  statement: <span class="str">"show"</span>;
+  subject: <span class="str">"schema"</span>;
+  metrics: MetricSummary[];
+}
+
+<span class="kw">interface</span> MetricSummary {
+  name: <span class="kw">string</span>;
+  description?: <span class="kw">string</span>;
+  primaryTime: <span class="kw">string</span> | <span class="kw">null</span>;        <span class="cmt">// name of the primary-time dimension</span>
+  dimensions: DimensionInfo[];         <span class="cmt">// dimensions on this metric's dataset</span>
+}
+
+<span class="kw">interface</span> UnregisterResult {
+  statement: <span class="str">"unregister"</span>;
+  name: <span class="kw">string</span>;                        <span class="cmt">// echoed from the statement</span>
+  found: <span class="kw">boolean</span>;                      <span class="cmt">// false if no entry by that name existed</span>
 }</pre>
           </section>
 
@@ -603,7 +673,7 @@
                 <tr><td><code>unknown_metric</code></td><td>Referenced metric is not in the semantic model.</td></tr>
                 <tr><td><code>unknown_dimension</code></td><td>Referenced dimension is not on the metric's dataset, or a categorical dimension was compared against a time literal, or <code>IN &lt;time-region&gt;</code> was applied to a non-time dimension.</td></tr>
                 <tr><td><code>missing_primary_time</code></td><td>The metric has no primary time dimension and the statement needs one.</td></tr>
-                <tr><td><code>incompatible_metrics</code></td><td>Multi-metric COMPUTE attempted (not supported in v0.3.0), or multi-metric IMPACTING / CHECK metrics don't share a primary time.</td></tr>
+                <tr><td><code>incompatible_metrics</code></td><td>Multi-metric COMPUTE attempted (not supported in v0.4.0), or multi-metric IMPACTING / CHECK metrics don't share a primary time.</td></tr>
                 <tr><td><code>grain_required</code></td><td>Time dimension in <code>GROUP BY</code> needs a grain, or a grain was applied to a non-time dimension.</td></tr>
                 <tr><td><code>range_start_after_end</code></td><td>A range literal whose start comes after its end.</td></tr>
                 <tr><td><code>mixed_unit_range</code></td><td>The two ends of a range are different calendar units.</td></tr>

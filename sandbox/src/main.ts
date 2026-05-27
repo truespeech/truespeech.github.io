@@ -18,8 +18,8 @@ import { IMPORTS } from "./config.js";
 import { initDatabase, query as dbQuery } from "./db.js";
 import { createNotebook } from "./notebook.js";
 import { createLexiconPanel } from "./lexicon-panel.js";
-import { createExamplesPanel } from "./examples-panel.js";
-import type { ExampleGroup } from "./examples-panel.js";
+import { createSearchPanel } from "./search-panel.js";
+import { SAMPLES } from "./samples.js";
 
 interface ResolvedConstraint {
   dimension: string;
@@ -133,7 +133,18 @@ class MemoryLexicon {
   getEntries(): LexiconEntry[] {
     return this.entries.map(cloneEntry);
   }
-  delete(name: string): void {
+  // The runtime's LexiconAdapter contract (v0.4.0+) names this `remove`
+  // and expects a Promise<boolean> indicating whether anything was
+  // removed. The panel still calls a synchronous helper internally;
+  // this method is what the adapter interface sees.
+  async remove(name: string): Promise<boolean> {
+    const before = this.entries.length;
+    this.entries = this.entries.filter((e) => e.name !== name);
+    return this.entries.length < before;
+  }
+  // Synchronous shim retained for the lexicon panel's delete button,
+  // which doesn't need the found/not-found signal.
+  deleteByName(name: string): void {
     this.entries = this.entries.filter((e) => e.name !== name);
   }
   snapshotSeed(): void {
@@ -248,138 +259,36 @@ async function main() {
 
     loadingEl.remove();
 
-    function syncDependentPanels(): void {
-      lexiconPanel.refresh();
-      examplesPanel.refresh();
-    }
-
     const lexiconPanel = createLexiconPanel({
       getEntries: () => lexicon.getEntries(),
-      onDelete: (name) => {
-        lexicon.delete(name);
-        examplesPanel.refresh();
-      },
-      onReset: () => {
-        lexicon.reset();
-        examplesPanel.refresh();
-      },
+      onDelete: (name) => lexicon.deleteByName(name),
+      onReset: () => lexicon.reset(),
       renderRegion: tsModule.renderRegion,
     });
 
     const notebook = createNotebook({
       placeholder: "Enter a COMPUTE, REGISTER, or CHECK statement…",
-      onSubmit: (source) => handleSubmit(source, ts, tsModule, notebook, syncDependentPanels),
+      onSubmit: (source) => handleSubmit(source, ts, tsModule, notebook, lexiconPanel),
     });
 
-    const exampleGroups: ExampleGroup[] = [
-      {
-        title: "Basic",
-        cards: [
-          {
-            label: "April 2026 sales (clean baseline)",
-            explanation: "No lexicon entries touch April — useful as a baseline for what a clean result looks like. (The sample data ends April 2026, so this is the only naturally-clean post-cut window.)",
-            command: "COMPUTE total_sales OVER 2026-04",
-          },
-          {
-            label: "Hits Feb anomaly",
-            explanation: "Overlaps q1_data_quality_issue → row flagged amber. Also pre-cut for the enterprise_price_reset boundary → historical footer.",
-            command: "COMPUTE total_sales OVER 2026-02",
-          },
-          {
-            label: "Northeast in March",
-            explanation: "GROUP BY region; only the northeast row touches the fulfillment-outage region. March is pre-cut for the enterprise boundary → historical footer.",
-            command: "COMPUTE total_sales OVER 2026-03 GROUP BY region",
-          },
-          {
-            label: "Whole year 2026 (catches everything)",
-            explanation: "Wide annual scope — single row picks up both regions (warns) and straddles the enterprise boundary (red error). Useful for seeing every match type in one query.",
-            command: "COMPUTE total_sales OVER 2026",
-          },
-        ],
-      },
-      {
-        title: "Boundaries",
-        cards: [
-          {
-            label: "AOV across Jan cut (error)",
-            explanation: "Single row spans Jan 1, mixing both AOV regimes → red error. The value is incoherent.",
-            command: "COMPUTE average_order_value OVER 2025-Q4 to 2026-Q1",
-          },
-          {
-            label: "AOV by quarter (regime labels)",
-            explanation: "Same span, GROUP BY quarter → two rows, neither straddles. Each carries its regime label inline.",
-            command: "COMPUTE average_order_value OVER 2025-Q4 to 2026-Q1 GROUP BY quarter",
-          },
-          {
-            label: "AOV last year (historical)",
-            explanation: "Entirely pre-cut — no row flags, just a soft footer describing the pre-2026 AOV regime.",
-            command: "COMPUTE average_order_value OVER 2025",
-          },
-        ],
-      },
-      {
-        title: "Disambiguation",
-        cards: [
-          {
-            label: "Enterprise across Apr cut",
-            explanation: "Query pins enterprise and spans Apr 1 → straddling-row error from the scoped boundary, plus warns from the Feb/March region entries that fall in the span.",
-            command:
-              "COMPUTE total_sales OVER 2026-Q1 to 2026-Q2 AND product_tier = 'enterprise'",
-          },
-          {
-            label: "By tier (scopes the cut)",
-            explanation: "GROUP BY product_tier. Both region entries hit both rows; the enterprise boundary applies only to the enterprise row (red error), while consumer's row carries the region warns alone.",
-            command: "COMPUTE total_sales OVER 2026-Q1 to 2026-Q2 GROUP BY product_tier",
-          },
-          {
-            label: "Check Q1",
-            explanation: "Lexicon lookup without running the metric query — surfaces every entry matching the Q1 slice.",
-            command: "CHECK total_sales, average_order_value OVER 2026-Q1",
-          },
-        ],
-      },
-      {
-        title: "Registration",
-        cards: [
-          {
-            label: "Register a region",
-            explanation: "Adds a new region entry to the lexicon. After running, the lexicon panel refreshes.",
-            command:
-              `REGISTER region promo_spike\n  IMPACTING total_sales OVER 2026-03-15 to 2026-03-22\n  WITH "Spring promotion ran during this window"`,
-          },
-          {
-            label: "Register a boundary",
-            explanation: "Adds a new boundary with BEFORE/AFTER regime descriptions. Modifies the lexicon (dirty state).",
-            command:
-              `REGISTER boundary tax_rule_change\n  AT 2026-02-01\n  IMPACTING total_sales\n  BEFORE "tax-exclusive" "Sales totals were reported net of sales tax"\n  AFTER  "tax-inclusive" "Sales totals roll up gross of sales tax"`,
-          },
-        ],
-      },
-    ];
-
-    const examplesPanel = createExamplesPanel({
-      groups: exampleGroups,
-      isDirty: () => lexicon.isDirty(),
-      onReset: () => {
-        lexicon.reset();
-        syncDependentPanels();
-      },
-      onCopy: async (command) => {
+    const searchPanel = createSearchPanel({
+      samples: SAMPLES,
+      onCopy: async (code) => {
         try {
-          await navigator.clipboard.writeText(command);
+          await navigator.clipboard.writeText(code);
         } catch {
           console.warn("Clipboard write failed; user must copy manually.");
         }
       },
-      onRun: (command) => {
+      onRun: (code) => {
         notebook.element.scrollIntoView({ behavior: "smooth", block: "start" });
-        notebook.submit(command);
+        notebook.submit(code);
       },
     });
 
     container.appendChild(lexiconPanel.element);
-    container.appendChild(examplesPanel.element);
     container.appendChild(notebook.element);
+    container.appendChild(searchPanel.element);
 
     notebook.focus();
   } catch (err: unknown) {
@@ -396,7 +305,7 @@ async function handleSubmit(
   ts: ReturnType<TsRuntimeApi["TrueSpeech"] extends new (...a: any) => infer R ? () => R : never>,
   tsModule: TsRuntimeApi,
   notebook: ReturnType<typeof createNotebook>,
-  syncDependentPanels: () => void
+  lexiconPanel: ReturnType<typeof createLexiconPanel>
 ) {
   const trimmed = source.trim();
   if (trimmed.length === 0) return;
@@ -425,7 +334,7 @@ async function handleSubmit(
         break;
       case "register":
         notebook.addCell(renderRegisterCell(trimmed, result));
-        syncDependentPanels();
+        lexiconPanel.refresh();
         break;
       case "check":
         notebook.addCell(renderCheckCell(trimmed, result, tsModule));
