@@ -11,9 +11,8 @@
     <div class="intro">
       <p class="kicker">True Speech · v0.4.0 · Sandbox</p>
       <h1>truespeech Sandbox</h1>
-      <p class="lede">A scratch space for tinkering with truespeech. The notebook below is yours to play in; results stack as cells you can scroll back through. Looking to learn the language? Start with the <a href="tutorial.html">tutorial</a>. Need the full grammar? See the <a href="reference.html">reference</a>.</p>
-      <p>The corpus is <strong>NorthStar Goods</strong>, a fictional mid-size US retailer — ~200 rows of order data spanning Jan 2025 through Apr 2026, with two product tiers (consumer / enterprise) across four regions. The lexicon is preloaded with a handful of entries from their operating life — known data-quality windows, a regional outage, a couple of metric-definition changes.</p>
-      <p>Pinned to <code>truespeech@v0.4.0</code> · <a href="https://github.com/truespeech/truespeech">source on GitHub</a></p>
+      <p class="lede">A scratch space for tinkering with truespeech. The notebook below is yours to play in; results stack as cells you can scroll back through. The database is read-only, but you can freely modify the lexicon — just reload the page to restore the seed lexicon. Looking to learn the language? Start with the <a href="tutorial.html">tutorial</a>. Need the full grammar? See the <a href="reference.html">reference</a>. Want to peek at the implementation? The runtime source is on <a href="https://github.com/truespeech/truespeech">GitHub</a>.</p>
+      <p class="lede">The corpus is <strong>NorthStar Goods</strong>, a fictional mid-size US retailer — ~200 rows of order data spanning Jan 2025 through Apr 2026, with two product tiers (consumer / enterprise) across four regions. The lexicon is preloaded with a handful of entries from their operating life — known data-quality windows, a regional outage, a couple of metric-definition changes.</p>
     </div>
 
     <aside class="sandbox-hints" aria-label="Getting started">
@@ -24,15 +23,15 @@
         <li><code>SHOW SCHEMA</code> — metrics and dimensions in the semantic layer</li>
         <li><code>UNREGISTER &lt;name&gt;</code> — drop an entry from the lexicon</li>
       </ul>
-      <div class="sandbox-hints-foot">
-        <a href="reference.html">Full grammar →</a>
-        <button id="reset-lexicon-btn" class="sandbox-reset-btn" type="button" title="Restore the seed lexicon entries">Reset lexicon</button>
-      </div>
     </aside>
 
     <section id="workspace" class="sandbox-workspace">
       <div id="demo"></div>
     </section>
+
+    <footer class="page-footer">
+      <p>Pinned to <code>truespeech@v0.4.0</code> · <a href="https://github.com/truespeech/truespeech">source on GitHub</a></p>
+    </footer>
   </div>
   <script type="module" src="sandbox/dist/main.js"></script>
 </body>

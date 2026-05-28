@@ -142,19 +142,8 @@ async function main() {
             placeholder: "Enter a COMPUTE, REGISTER, CHECK, SHOW, or UNREGISTER statement…",
             onSubmit: (source) => handleSubmit(source, ts, tsModule, notebook),
         });
-        // Wire the hints-card Reset button to the lexicon's seed snapshot.
-        // Confirm before destroying — without the always-visible lexicon
-        // panel, users can't see what they're about to lose.
-        const resetBtn = document.getElementById("reset-lexicon-btn");
-        if (resetBtn) {
-            resetBtn.addEventListener("click", () => {
-                if (!lexicon.isDirty())
-                    return;
-                const ok = window.confirm("Reset the lexicon to its seed state? Any entries you've registered (and any seed entries you've UNREGISTERed) will be undone.");
-                if (ok)
-                    lexicon.reset();
-            });
-        }
+        // (Reset-lexicon affordance removed — users restore the seed by
+        // reloading the page, called out in the intro paragraph.)
         const searchPanel = createSearchPanel({
             samples: SAMPLES,
             onCopy: async (code) => {
@@ -277,7 +266,7 @@ function renderResultTable(result, tsModule) {
             grainByCol.set(i, g);
     }
     const table = document.createElement("table");
-    table.className = "nb-result-table";
+    table.className = "data-table nb-result-table";
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
     for (const col of columns) {
@@ -292,18 +281,19 @@ function renderResultTable(result, tsModule) {
         const row = result.results.rows[i];
         const decoration = decorations[i];
         const tr = document.createElement("tr");
-        tr.className = "nb-row";
+        // Severity is communicated via colored text on the metric value
+        // cell and the note cell (no background tinting). The note column
+        // also leads with a small icon (⚠ / ✗) so the signal is visible
+        // even on rows where the metric value is empty.
         if (decoration.severity) {
             tr.classList.add(`nb-row-${decoration.severity}`);
         }
-        // The metric value is the last data column (i.e. not a group-by).
         const metricColIdx = result.results.columns.length - 1;
         for (let j = 0; j < result.results.columns.length; j++) {
             const td = document.createElement("td");
-            const cellValue = formatCellValue(row[j], grainByCol.get(j), tsModule);
-            td.textContent = cellValue;
+            td.textContent = formatCellValue(row[j], grainByCol.get(j), tsModule);
             if (j === metricColIdx && decoration.severity) {
-                td.classList.add(`nb-cell-value`);
+                td.classList.add("nb-cell-value");
             }
             tr.appendChild(td);
         }
@@ -354,108 +344,107 @@ function formatRowMatchNote(m, tsModule) {
     const label = m.side === "before" ? m.entry.before.label : m.entry.after.label;
     return `┃ ${m.entry.name} · ${m.side}: ${label}`;
 }
+// Reconciliation: plain table, one row per matching entry. Region
+// rows show the entry's description in the Detail column; boundary
+// rows stack before / after regime lines plus a change sentence.
 function renderReconciliationBlock(matches) {
-    const block = document.createElement("section");
-    block.className = "nb-reconciliation";
-    const header = document.createElement("header");
+    const wrap = document.createElement("section");
+    wrap.className = "nb-block";
+    const header = document.createElement("p");
     header.className = "nb-block-header";
     header.textContent =
         matches.length === 1
-            ? `Reconciliation · 1 entry matched`
+            ? "Reconciliation · 1 entry matched"
             : `Reconciliation · ${matches.length} entries matched`;
-    block.appendChild(header);
-    const list = document.createElement("ul");
-    list.className = "nb-match-list";
+    wrap.appendChild(header);
+    const table = document.createElement("table");
+    table.className = "data-table";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const col of ["Kind", "Entry", "Metric · locus", "Detail"]) {
+        const th = document.createElement("th");
+        th.textContent = col;
+        headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
     for (const m of matches) {
-        list.appendChild(renderMatchItem(m));
+        tbody.appendChild(renderMatchRow(m));
     }
-    block.appendChild(list);
-    return block;
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
 }
-function renderMatchItem(m) {
-    const item = document.createElement("li");
-    item.className = `nb-match nb-match-${m.kind}`;
-    const head = document.createElement("div");
-    head.className = "nb-match-head";
-    const kindTag = document.createElement("span");
-    kindTag.className = `kind-tag kind-${m.kind}`;
-    kindTag.textContent = m.kind;
-    head.appendChild(kindTag);
-    const name = document.createElement("span");
-    name.className = "nb-match-name";
-    name.textContent = m.entry.name;
-    head.appendChild(name);
-    const meta = document.createElement("span");
-    meta.className = "nb-match-meta";
+function renderMatchRow(m) {
+    const tr = document.createElement("tr");
+    const kindTd = document.createElement("td");
+    const tag = document.createElement("span");
+    tag.className = `kind-tag kind-${m.kind}`;
+    tag.textContent = m.kind;
+    kindTd.appendChild(tag);
+    tr.appendChild(kindTd);
+    const nameTd = document.createElement("td");
+    nameTd.className = "nb-cell-mono";
+    nameTd.textContent = m.entry.name;
+    tr.appendChild(nameTd);
+    const metricTd = document.createElement("td");
+    metricTd.className = "nb-cell-mono nb-cell-muted";
+    metricTd.textContent = m.kind === "region"
+        ? m.impact.metric
+        : `${m.metric} · cut at ${m.crossedAt}`;
+    tr.appendChild(metricTd);
+    const detailTd = document.createElement("td");
     if (m.kind === "region") {
-        meta.textContent = m.impact.metric;
+        detailTd.textContent = m.entry.description;
     }
     else {
-        meta.textContent = `${m.metric} · cut at ${m.crossedAt}`;
-    }
-    head.appendChild(meta);
-    item.appendChild(head);
-    if (m.kind === "region") {
-        const desc = document.createElement("p");
-        desc.className = "nb-match-desc";
-        desc.textContent = m.entry.description;
-        item.appendChild(desc);
-    }
-    else {
-        const regimes = document.createElement("div");
-        regimes.className = "regimes";
-        regimes.appendChild(renderRegime("before", m.entry.before));
-        regimes.appendChild(renderRegime("after", m.entry.after));
-        item.appendChild(regimes);
+        detailTd.appendChild(renderRegimeLine("before", m.entry.before));
+        detailTd.appendChild(renderRegimeLine("after", m.entry.after));
         const change = document.createElement("p");
-        change.className = "nb-match-change";
+        change.className = "nb-detail-foot";
         change.textContent =
             m.entry.changeDescription ??
                 `On ${m.crossedAt}, ${m.metric} shifted from "${m.entry.before.label}" to "${m.entry.after.label}".`;
-        item.appendChild(change);
+        detailTd.appendChild(change);
     }
-    return item;
+    tr.appendChild(detailTd);
+    return tr;
 }
-function renderRegime(side, regime) {
-    const wrap = document.createElement("div");
-    wrap.className = `regime regime-${side}`;
-    const tag = document.createElement("span");
-    tag.className = "regime-tag";
-    tag.textContent = `${side} · ${regime.label}`;
-    wrap.appendChild(tag);
-    const desc = document.createElement("span");
-    desc.className = "regime-desc";
-    desc.textContent = regime.description;
-    wrap.appendChild(desc);
-    return wrap;
+// One regime line — used in reconciliation rows, the historical
+// block, REGISTER boundary confirmations, and SHOW LEXICON detail.
+// Plain prose: "before \"<label>\" — <description>". Bold side label,
+// quoted user label, em-dash, description. No pill chrome.
+function renderRegimeLine(side, regime) {
+    const line = document.createElement("p");
+    line.className = "nb-regime-line";
+    const strong = document.createElement("strong");
+    strong.textContent = side;
+    line.appendChild(strong);
+    line.appendChild(document.createTextNode(` "${regime.label}" — ${regime.description}`));
+    return line;
 }
+// Historical note: prose, no container chrome. Lead sentence,
+// before/after regime lines, foot sentence pointing the operator at
+// the post-cut regime that's normal now.
 function renderHistoricalBlock(note) {
-    const block = document.createElement("aside");
-    block.className = "nb-historical";
-    const header = document.createElement("header");
-    header.className = "nb-block-header nb-historical-header";
-    const title = document.createElement("span");
-    title.textContent = "ℹ Historical context";
-    header.appendChild(title);
-    const meta = document.createElement("span");
-    meta.className = "nb-block-meta";
-    meta.textContent = `${note.boundary.name} · ${note.metric}`;
-    header.appendChild(meta);
-    block.appendChild(header);
+    const wrap = document.createElement("section");
+    wrap.className = "nb-block nb-historical";
+    const header = document.createElement("p");
+    header.className = "nb-block-header";
+    header.textContent = `Historical context · ${note.boundary.name} · ${note.metric}`;
+    wrap.appendChild(header);
     const lead = document.createElement("p");
     lead.className = "nb-historical-lead";
-    lead.textContent = `These values were computed under the pre-cut regime.`;
-    block.appendChild(lead);
-    const regimes = document.createElement("div");
-    regimes.className = "regimes";
-    regimes.appendChild(renderRegime("before", note.boundary.before));
-    regimes.appendChild(renderRegime("after", note.boundary.after));
-    block.appendChild(regimes);
+    lead.textContent = "These values were computed under the pre-cut regime.";
+    wrap.appendChild(lead);
+    wrap.appendChild(renderRegimeLine("before", note.boundary.before));
+    wrap.appendChild(renderRegimeLine("after", note.boundary.after));
     const foot = document.createElement("p");
     foot.className = "nb-historical-foot";
     foot.textContent = `As of ${note.boundary.at}, ${note.metric} is reported under the "${note.boundary.after.label}" regime.`;
-    block.appendChild(foot);
-    return block;
+    wrap.appendChild(foot);
+    return wrap;
 }
 function renderSqlDetails(sql) {
     const details = document.createElement("details");
@@ -484,64 +473,80 @@ function renderRegisterCell(source, result) {
     banner.appendChild(msg);
     output.appendChild(banner);
     if (e.kind === "region") {
-        const list = document.createElement("ul");
-        list.className = "nb-register-impacts";
-        for (const impact of e.impacts) {
-            const li = document.createElement("li");
-            li.textContent = `${impact.metric} over ${impact.region.timeStart} to ${impact.region.timeEnd}`;
-            list.appendChild(li);
+        const meta = document.createElement("p");
+        meta.className = "nb-detail-meta";
+        meta.textContent = `${e.impacts.length} impact${e.impacts.length === 1 ? "" : "s"}`;
+        output.appendChild(meta);
+        const table = document.createElement("table");
+        table.className = "data-table";
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        for (const col of ["Metric", "Range", "Constraints"]) {
+            const th = document.createElement("th");
+            th.textContent = col;
+            headRow.appendChild(th);
         }
-        output.appendChild(list);
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        for (const impact of e.impacts) {
+            const tr = document.createElement("tr");
+            const metricTd = document.createElement("td");
+            metricTd.className = "nb-cell-mono";
+            metricTd.textContent = impact.metric;
+            tr.appendChild(metricTd);
+            const rangeTd = document.createElement("td");
+            rangeTd.className = "nb-cell-mono";
+            rangeTd.textContent = `${impact.region.timeStart} → ${impact.region.timeEnd}`;
+            tr.appendChild(rangeTd);
+            const constraintsTd = document.createElement("td");
+            constraintsTd.className = "nb-cell-mono nb-cell-muted";
+            constraintsTd.textContent = impact.region.constraints.length > 0
+                ? impact.region.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")
+                : "—";
+            tr.appendChild(constraintsTd);
+            tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        output.appendChild(table);
         const desc = document.createElement("p");
-        desc.className = "nb-register-desc";
+        desc.className = "nb-detail-desc";
         desc.textContent = e.description;
         output.appendChild(desc);
     }
     else {
         const meta = document.createElement("p");
-        meta.className = "nb-register-meta";
-        meta.textContent = `Cut at ${e.at} · impacts ${e.metrics.join(", ")}`;
+        meta.className = "nb-detail-meta";
+        const scope = e.constraints.length > 0
+            ? ` · ${e.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")}`
+            : "";
+        meta.textContent = `Cut at ${e.at} · impacts ${e.metrics.join(", ")}${scope}`;
         output.appendChild(meta);
-        const regimes = document.createElement("div");
-        regimes.className = "regimes";
-        regimes.appendChild(renderRegime("before", e.before));
-        regimes.appendChild(renderRegime("after", e.after));
-        output.appendChild(regimes);
+        output.appendChild(renderRegimeLine("before", e.before));
+        output.appendChild(renderRegimeLine("after", e.after));
+        if (e.changeDescription) {
+            const change = document.createElement("p");
+            change.className = "nb-detail-foot";
+            change.textContent = `Change: "${e.changeDescription}"`;
+            output.appendChild(change);
+        }
     }
     return cell;
 }
+// CHECK reuses the reconciliation block — same renderer, since the
+// underlying data shape (LexiconMatch[]) is identical.
 function renderCheckCell(source, result, tsModule) {
+    void tsModule; // overlap-augmented rendering removed in the table view
     const { cell, output } = renderCellShell(source, "check");
     if (result.matches.length === 0) {
         const empty = document.createElement("p");
-        empty.className = "nb-check-empty";
-        empty.textContent = "(no lexicon matches)";
+        empty.className = "nb-soft-note";
+        empty.textContent = "· No lexicon matches.";
         output.appendChild(empty);
         return cell;
     }
-    const header = document.createElement("header");
-    header.className = "nb-block-header";
-    header.textContent = `${result.matches.length} match${result.matches.length === 1 ? "" : "es"}`;
-    output.appendChild(header);
-    const list = document.createElement("ul");
-    list.className = "nb-match-list";
-    for (const m of result.matches) {
-        list.appendChild(renderCheckMatchItem(m, tsModule));
-    }
-    output.appendChild(list);
+    output.appendChild(renderReconciliationBlock(result.matches));
     return cell;
-}
-function renderCheckMatchItem(m, tsModule) {
-    const item = renderMatchItem(m);
-    // Augment region matches with the overlap region — useful in CHECK
-    // since there's no row context to anchor the match.
-    if (m.kind === "region") {
-        const overlap = document.createElement("span");
-        overlap.className = "nb-match-overlap";
-        overlap.textContent = ` · ${tsModule.renderRegion(m.overlap)}`;
-        item.querySelector(".nb-match-head")?.appendChild(overlap);
-    }
-    return item;
 }
 function renderErrorCell(source, errors, tsModule) {
     const { cell, output } = renderCellShell(source, "error");
@@ -666,57 +671,79 @@ function formatConstraintValue(v) {
     }
     return typeof v === "string" ? `'${v}'` : String(v);
 }
+// SHOW LEXICON <name> detail — plain content, no card chrome. Header
+// is the kind tag + name; meta line is the impacts count or the cut
+// summary; for regions a small impacts table follows, for boundaries
+// the regime lines stack underneath.
 function renderLexiconEntryDetail(e) {
     const wrap = document.createElement("section");
-    wrap.className = "nb-show-detail";
-    const header = document.createElement("div");
-    header.className = "nb-show-detail-header";
+    wrap.className = "nb-detail";
+    const header = document.createElement("p");
+    header.className = "nb-detail-header";
     const tag = document.createElement("span");
     tag.className = `kind-tag kind-${e.kind}`;
     tag.textContent = e.kind;
     header.appendChild(tag);
     const name = document.createElement("span");
-    name.className = "nb-show-detail-name";
+    name.className = "nb-detail-name";
     name.textContent = e.name;
     header.appendChild(name);
     wrap.appendChild(header);
     if (e.kind === "region") {
         const meta = document.createElement("p");
-        meta.className = "nb-show-detail-meta";
+        meta.className = "nb-detail-meta";
         meta.textContent = `${e.impacts.length} impact${e.impacts.length === 1 ? "" : "s"}`;
         wrap.appendChild(meta);
-        const impactList = document.createElement("ul");
-        impactList.className = "nb-show-impacts";
-        for (const impact of e.impacts) {
-            const li = document.createElement("li");
-            const scope = impact.region.constraints.length > 0
-                ? " AND " + impact.region.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")
-                : "";
-            li.textContent = `${impact.metric} · ${impact.region.timeStart} → ${impact.region.timeEnd}${scope}`;
-            impactList.appendChild(li);
+        const table = document.createElement("table");
+        table.className = "data-table";
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        for (const col of ["Metric", "Range", "Constraints"]) {
+            const th = document.createElement("th");
+            th.textContent = col;
+            headRow.appendChild(th);
         }
-        wrap.appendChild(impactList);
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        for (const impact of e.impacts) {
+            const tr = document.createElement("tr");
+            const metricTd = document.createElement("td");
+            metricTd.className = "nb-cell-mono";
+            metricTd.textContent = impact.metric;
+            tr.appendChild(metricTd);
+            const rangeTd = document.createElement("td");
+            rangeTd.className = "nb-cell-mono";
+            rangeTd.textContent = `${impact.region.timeStart} → ${impact.region.timeEnd}`;
+            tr.appendChild(rangeTd);
+            const cTd = document.createElement("td");
+            cTd.className = "nb-cell-mono nb-cell-muted";
+            cTd.textContent = impact.region.constraints.length > 0
+                ? impact.region.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")
+                : "—";
+            tr.appendChild(cTd);
+            tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        wrap.appendChild(table);
         const desc = document.createElement("p");
-        desc.className = "nb-show-detail-desc";
+        desc.className = "nb-detail-desc";
         desc.textContent = `"${e.description}"`;
         wrap.appendChild(desc);
     }
     else {
         const meta = document.createElement("p");
-        meta.className = "nb-show-detail-meta";
+        meta.className = "nb-detail-meta";
         const scope = e.constraints.length > 0
             ? ` · ${e.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")}`
             : "";
         meta.textContent = `Cut at ${e.at} · impacts ${e.metrics.join(", ")}${scope}`;
         wrap.appendChild(meta);
-        const regimes = document.createElement("div");
-        regimes.className = "regimes";
-        regimes.appendChild(renderRegime("before", e.before));
-        regimes.appendChild(renderRegime("after", e.after));
-        wrap.appendChild(regimes);
+        wrap.appendChild(renderRegimeLine("before", e.before));
+        wrap.appendChild(renderRegimeLine("after", e.after));
         if (e.changeDescription) {
             const change = document.createElement("p");
-            change.className = "nb-show-detail-change";
+            change.className = "nb-detail-foot";
             change.textContent = `Change: "${e.changeDescription}"`;
             wrap.appendChild(change);
         }
@@ -740,10 +767,12 @@ function renderShowSchemaCell(source, result) {
     }
     return cell;
 }
+// SHOW SCHEMA per-metric section — plain header + optional
+// description + plain dimensions table. No container chrome.
 function renderMetricBlock(m) {
     const wrap = document.createElement("section");
-    wrap.className = "nb-metric-block";
-    const header = document.createElement("div");
+    wrap.className = "nb-metric";
+    const header = document.createElement("p");
     header.className = "nb-metric-header";
     const name = document.createElement("span");
     name.className = "nb-metric-name";
@@ -751,20 +780,20 @@ function renderMetricBlock(m) {
     header.appendChild(name);
     if (m.primaryTime) {
         const primary = document.createElement("span");
-        primary.className = "nb-metric-primary";
-        primary.textContent = `primary time: ${m.primaryTime}`;
+        primary.className = "nb-cell-muted nb-cell-mono";
+        primary.textContent = ` · primary time: ${m.primaryTime}`;
         header.appendChild(primary);
     }
     wrap.appendChild(header);
     if (m.description) {
         const desc = document.createElement("p");
-        desc.className = "nb-metric-desc";
+        desc.className = "nb-detail-desc";
         desc.textContent = m.description;
         wrap.appendChild(desc);
     }
     if (m.dimensions.length > 0) {
         const table = document.createElement("table");
-        table.className = "data-table nb-metric-dims";
+        table.className = "data-table";
         const thead = document.createElement("thead");
         const headRow = document.createElement("tr");
         for (const col of ["Dimension", "Type", "Dataset"]) {

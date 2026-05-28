@@ -63,6 +63,36 @@ code {
   color: #444;
 }
 
+/* Page footer — small muted strip at the bottom of the page for
+   the CDN-pin line and the source link. Separated from the workspace
+   by a thin warm-gray divider. */
+
+.page-footer {
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid #e0dcc8;
+  font-size: 12px;
+  color: #888;
+}
+
+.page-footer p {
+  margin: 0;
+}
+
+.page-footer code {
+  background: #f0ece0;
+  font-size: 11px;
+}
+
+.page-footer a {
+  color: #5b8d5b;
+  text-decoration: none;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+}
+
 /* Example buttons */
 
 .example-bar {
@@ -511,41 +541,25 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   gap: 4px;
 }
 
+/* Result tables (COMPUTE cells) share .data-table styling; this class
+   is just a hook for any compute-result-specific overrides. */
+
 .nb-result-table {
-  border-collapse: collapse;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 13px;
-  color: #2a2a2a;
 }
 
-.nb-result-table th,
-.nb-result-table td {
-  border: 1px solid #d8d4c5;
-  padding: 5px 10px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.nb-result-table th {
-  background: #ece8d8;
-  font-weight: 600;
-  color: #444;
-}
-
-.nb-result-table tbody tr {
-  background: #fdfcf6;
-}
+/* Severity on result rows: colored text only (no background tint).
+   The note column also leads with an icon (⚠ / ✗) so the signal
+   reads even when the row's metric value is empty. */
 
 .nb-row-warn .nb-cell-value,
 .nb-row-warn .nb-cell-note {
   color: #a86b00;
-  background: #fff7e6;
 }
 
 .nb-row-error .nb-cell-value,
 .nb-row-error .nb-cell-note {
   color: #c92a2a;
-  background: #fdecec;
   font-weight: 600;
 }
 
@@ -561,122 +575,108 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   padding: 0 2px;
 }
 
-/* Block headers for reconciliation / check / historical */
+/* Block headers for reconciliation / check / historical — plain text
+   above their table or prose. No container chrome around either. */
+
+.nb-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .nb-block-header {
-  font-size: 12px;
+  margin: 0;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b4500;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+  letter-spacing: 0.08em;
+  color: #555;
 }
 
-.nb-block-meta {
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
-  color: #888;
+/* Per-cell utility classes used by the new table-based reconciliation,
+   SHOW LEXICON detail, and SHOW SCHEMA blocks. .nb-cell-mono renders
+   plain monospace; .nb-cell-muted desaturates. */
+
+.nb-cell-mono {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
 }
 
-/* Reconciliation block */
+.nb-cell-muted {
+  color: #777;
+}
 
-.nb-reconciliation {
-  background: #fff7e6;
-  border: 1px solid #f0c060;
-  border-radius: 4px;
-  padding: 10px 12px;
+/* Detail-view (SHOW LEXICON <name>, REGISTER cell) — plain prose,
+   no card chrome. Header is kind tag + name; meta + desc + foot are
+   plain text lines. */
+
+.nb-detail {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.nb-reconciliation .nb-block-header {
-  color: #6b4500;
-}
-
-.nb-match-list {
-  list-style: none;
+.nb-detail-header {
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.nb-match {
-  background: #fffcf2;
-  border: 1px solid #ead9b0;
-  border-radius: 3px;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.nb-match-head {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-/* Removed: replaced by shared .kind-tag rules at the end of the file. */
-
-.nb-match-name {
+.nb-detail-name {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
 }
 
-.nb-match-meta {
+.nb-detail-meta {
+  margin: 0;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 12px;
   color: #555;
 }
 
-.nb-match-overlap {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #777;
-}
-
-.nb-match-desc {
+.nb-detail-desc {
   margin: 0;
   font-size: 13px;
   color: #444;
-  font-style: italic;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
-.nb-match-change {
+.nb-detail-foot {
   margin: 0;
   font-size: 12px;
   color: #6b4500;
   font-style: italic;
 }
 
-/* Removed: replaced by shared .regimes / .regime / .regime-tag rules. */
+/* Regime line — used by reconciliation rows, the historical block,
+   REGISTER boundary confirmations, and SHOW LEXICON detail. Plain
+   prose: bold side word, then the label in quotes, em-dash, then
+   the description text. No pill chrome. */
 
-/* Historical block */
-
-.nb-historical {
-  background: #f3f3f8;
-  border: 1px solid #c8c8d8;
-  border-left: 3px solid #b0b0c0;
-  border-radius: 0 4px 4px 0;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.nb-regime-line {
+  margin: 0;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.5;
 }
 
-.nb-historical-header {
+.nb-regime-line strong {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b4500;
+  margin-right: 6px;
+}
+
+/* Historical-context block — same prose-only shape, color-tuned for
+   "informational" rather than "warn". */
+
+.nb-historical .nb-block-header {
   color: #4a4a78;
 }
 
@@ -684,8 +684,38 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 .nb-historical-foot {
   margin: 0;
   font-size: 13px;
-  color: #4a4a78;
-  line-height: 1.45;
+  color: #444;
+  line-height: 1.5;
+}
+
+/* SHOW SCHEMA per-metric section — plain header + optional
+   description + plain dimensions table. No container chrome. */
+
+.nb-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nb-metric + .nb-metric {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e8e4d4;
+}
+
+.nb-metric-header {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.nb-metric-name {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
 }
 
 /* SQL details */
@@ -720,7 +750,10 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   line-height: 1.45;
 }
 
-/* Register cell */
+/* Register cell — banner is the only register-specific affordance;
+   everything underneath (impacts table, regime lines, meta line)
+   uses the shared .data-table / .nb-detail-* / .nb-regime-line
+   primitives. */
 
 .nb-register-banner {
   display: flex;
@@ -732,45 +765,6 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   font-size: 14px;
   font-weight: 600;
   color: #1f4d1f;
-}
-
-.nb-register-impacts {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.nb-register-impacts li {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #555;
-}
-
-.nb-register-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #555;
-  font-style: italic;
-  line-height: 1.45;
-}
-
-.nb-register-meta {
-  margin: 0;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #555;
-}
-
-/* Check empty state */
-
-.nb-check-empty {
-  margin: 0;
-  font-style: italic;
-  color: #888;
-  font-size: 13px;
 }
 
 /* Error cell */
@@ -901,38 +895,9 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   background: #8a6d3b;
 }
 
-.regimes {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.regime {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  font-size: 13px;
-  color: #444;
-  line-height: 1.45;
-}
-
-.regime-tag {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #666;
-  background: #ececec;
-  padding: 2px 7px;
-  border-radius: 3px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.regime-desc {
-  flex: 1;
-}
+/* (.regime / .regimes / .regime-tag / .regime-desc removed in
+   Thread 3; the pill-and-row chrome was replaced by plain prose
+   via .nb-regime-line. .kind-tag is still used everywhere.) */
 
 /* Responsive */
 
@@ -947,11 +912,6 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 
   .nb-cell-note {
     max-width: 240px;
-  }
-
-  .regime {
-    flex-direction: column;
-    gap: 2px;
   }
 }
 
@@ -1377,9 +1337,9 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 }
 
 .data-table th {
-  background: #f0ece0;
+  background: #ece8d8;
   font-weight: 600;
-  color: #555;
+  color: #444;
 }
 
 .data-table td code {
@@ -1394,25 +1354,17 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   margin: 0 0 16px;
 }
 
-/* Search panel — wrapped in the unified panel chrome so it reads
-   as the same kind of element as the lexicon panel and the notebook.
-   Header bar with title, controls inside, results table below. */
+/* Search panel — Thread 3: drops the card chrome (border + cream
+   background + header band). Now a plain section: small heading,
+   compact controls, results as plain rows in a .data-table. The code
+   cell renders plain monospace text — no inset code block. */
 
 .search-panel {
-  background: #fdfcf6;
-  border: 1px solid #d8d4c5;
-  border-radius: 6px;
-  margin: 16px 0 0;
-  overflow: hidden;
+  margin: 24px 0 0;
 }
 
 .search-panel-header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 14px;
-  background: #f8f6ed;
-  border-bottom: 1px solid #d8d4c5;
+  margin-bottom: 12px;
 }
 
 .search-panel-title {
@@ -1421,7 +1373,7 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #555;
-  margin: 0;
+  margin: 0 0 4px;
 }
 
 .search-panel-help {
@@ -1434,7 +1386,7 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   display: flex;
   gap: 10px;
   align-items: stretch;
-  padding: 12px 14px 0;
+  margin-bottom: 8px;
 }
 
 .search-panel-input {
@@ -1482,37 +1434,35 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   font-size: 11px;
   color: #888;
   font-style: italic;
-  margin: 10px 14px 0;
+  margin: 0 0 8px;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
 }
 
 .search-panel-results {
   display: flex;
   flex-direction: column;
-  padding: 4px 0 4px;
 }
 
 .search-panel-empty {
   font-size: 13px;
   color: #888;
   font-style: italic;
-  padding: 8px 14px 12px;
-  margin: 0;
+  margin: 4px 0;
 }
+
+/* The results table reuses .data-table for chrome; .search-panel-table
+   is a hook for the column-width rule below and the actions-cell
+   right-alignment. */
 
 .search-panel-table {
-  border-collapse: collapse;
   width: 100%;
-  font-size: 13px;
 }
 
-.search-result-row {
-  border-top: 1px solid #e8e4d4;
+.search-panel-table td {
+  vertical-align: top;
 }
 
 .search-result-code-cell {
-  padding: 10px 14px;
-  vertical-align: top;
   width: 42%;
 }
 
@@ -1530,23 +1480,18 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   margin-bottom: 6px;
 }
 
+/* Code is plain monospace text inside the cell — no inset block,
+   no surrounding border. The .data-table cell padding does the
+   spacing work. */
+
 .search-result-code {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 12px;
   color: #2a2a2a;
-  background: #fff;
-  border: 1px solid #d8d4c5;
-  border-radius: 3px;
-  padding: 6px 8px;
   margin: 0;
   white-space: pre-wrap;
   overflow-x: auto;
   line-height: 1.45;
-}
-
-.search-result-desc-cell {
-  padding: 10px 14px;
-  vertical-align: top;
 }
 
 .search-result-desc {
@@ -1557,8 +1502,6 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 }
 
 .search-result-actions-cell {
-  padding: 10px 14px 10px 0;
-  vertical-align: top;
   white-space: nowrap;
   text-align: right;
 }
@@ -1631,137 +1574,48 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   font-style: italic;
 }
 
-/* SHOW LEXICON list — relies on .data-table for the bones; column-
-   specific styles below tighten the look. */
+/* (.nb-show-*, .nb-metric-block, .nb-metric-primary, .nb-metric-desc,
+   .nb-metric-dims removed in Thread 3. SHOW LEXICON list uses
+   .data-table directly; SHOW LEXICON <name> detail uses .nb-detail-*;
+   SHOW SCHEMA metric blocks use .nb-metric + .nb-metric-header /
+   .nb-metric-name defined earlier alongside the other notebook-cell
+   primitives.) */
 
-.nb-show-table {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-}
+/* Sandbox hints card — small callout between the intro and the
+   workspace pointing users at the data-dictionary statements.
+   Cream background + warm-gray border to mark it as a callout vs.
+   body content. */
 
-.nb-show-name {
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.nb-show-scope {
-  color: #555;
-  font-size: 12px;
-}
-
-.nb-show-summary {
-  color: #666;
-  font-style: italic;
-  font-size: 12px;
-  max-width: 360px;
-}
-
-/* SHOW LEXICON <name> detail view — header (kind tag + name), meta line
-   (impacts or cut), then either an impacts list (region) or a regimes
-   block (boundary). */
-
-.nb-show-detail {
+.sandbox-hints {
   background: #f8f6ed;
   border: 1px solid #d8d4c5;
-  border-radius: 4px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
 }
 
-.nb-show-detail-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.nb-show-detail-name {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.nb-show-detail-meta {
-  margin: 0;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #555;
-}
-
-.nb-show-impacts {
-  margin: 0;
-  padding: 0 0 0 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #444;
-}
-
-.nb-show-detail-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #444;
-  font-style: italic;
-  line-height: 1.5;
-}
-
-.nb-show-detail-change {
-  margin: 0;
-  font-size: 12px;
-  color: #6b4500;
-  font-style: italic;
-}
-
-/* SHOW SCHEMA — one section per metric: header (name + primary time),
-   optional description, dimensions table. */
-
-.nb-metric-block {
-  background: #f8f6ed;
-  border: 1px solid #d8d4c5;
-  border-radius: 4px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.nb-metric-block + .nb-metric-block {
-  /* Subtle separator between metric blocks. */
-  margin-top: 4px;
-}
-
-.nb-metric-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.nb-metric-name {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.nb-metric-primary {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+.sandbox-hints-title {
   font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: #555;
-  background: #f0ece0;
-  padding: 1px 6px;
-  border-radius: 3px;
+  margin: 0 0 10px;
 }
 
-.nb-metric-desc {
+.sandbox-hints-list {
   margin: 0;
-  font-size: 13px;
-  color: #555;
+  padding-left: 18px;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
-.nb-metric-dims {
-  margin: 4px 0 0;
+.sandbox-hints-list li {
+  margin: 0;
+}
+
+.sandbox-hints-list code {
+  background: #f0ece0;
+  font-size: 13px;
 }
