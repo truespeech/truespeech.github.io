@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>truespeech Reference · v0.4.0</title>
+  <title>truespeech Reference · v0.5.0</title>
   <link rel="stylesheet" href="truespeech/style.css">
 </head>
 <body>
   <div class="ref-page">
     <header class="ref-header">
-      <p class="kicker">True Speech · v0.4.0 · Reference</p>
+      <p class="kicker">True Speech · v0.5.0 · Reference</p>
       <h1 class="ref-title">truespeech Language Reference</h1>
-      <p class="ref-sub">The canonical reference for truespeech v0.4.0: syntax, semantics, and the runtime API. Pinned to <code>truespeech@v0.4.0</code>. See also: <a href="sandbox.html">interactive sandbox</a> · <a href="https://github.com/truespeech/truespeech">source</a>.</p>
+      <p class="ref-sub">The canonical reference for truespeech v0.5.0: syntax, semantics, and the runtime API. Pinned to <code>truespeech@v0.5.0</code>. See also: <a href="sandbox.html">interactive sandbox</a> · <a href="https://github.com/truespeech/truespeech">source</a>.</p>
     </header>
 
     <button class="ref-toc-toggle" id="ref-toc-toggle" aria-controls="ref-toc" aria-expanded="false">Contents</button>
@@ -55,6 +55,7 @@
                 <li><a href="#match-types" data-toc>Match types</a></li>
                 <li><a href="#decoration-types" data-toc>Decoration types</a></li>
                 <li><a href="#region-utilities" data-toc>Region utilities</a></li>
+                <li><a href="#completion" data-toc>Completion</a></li>
               </ol>
             </li>
             <li><a href="#errors" data-toc>Errors</a>
@@ -113,7 +114,7 @@
   [<span class="kw">GROUP BY</span> &lt;field&gt;[, &lt;field&gt;]...]
   [<span class="kw">ORDER BY</span> &lt;field&gt; [<span class="kw">ASC</span>|<span class="kw">DESC</span>][, ...]]
   [<span class="kw">LIMIT</span> &lt;n&gt;]</pre>
-            <p>v0.4.0 accepts exactly one metric per <code>COMPUTE</code>; a second metric raises <code>incompatible_metrics</code>. See <a href="#over-clause">The OVER clause</a> for the time and constraint grammar shared by all three statements.</p>
+            <p>v0.5.0 accepts exactly one metric per <code>COMPUTE</code>; a second metric raises <code>incompatible_metrics</code>. See <a href="#over-clause">The OVER clause</a> for the time and constraint grammar shared by all three statements.</p>
 
             <h4 id="compute-group-by">GROUP BY</h4>
             <p>Three group-by shapes are accepted:</p>
@@ -368,6 +369,7 @@
   semanticLayer: SemanticLayerAdapter;
   database: DatabaseAdapter;
   lexicon?: LexiconAdapter;
+  timeLiteralYears?: <span class="kw">number</span>[];
 }
 
 <span class="kw">class</span> TrueSpeech {
@@ -376,14 +378,17 @@
   parse(source: <span class="kw">string</span>): { ast: Statement | <span class="kw">null</span>; errors: TrueSpeechError[] };
   validate(ast: Statement): { errors: TrueSpeechError[] };
   execute(source: <span class="kw">string</span>): <span class="kw">Promise</span>&lt;ExecuteResult&gt;;
+  complete(source: <span class="kw">string</span>, position: <span class="kw">number</span>): <span class="kw">Promise</span>&lt;CompletionResult&gt;;
 }</pre>
             <ul>
               <li><strong><code>tokenize</code></strong> — lexical analysis. Pure. Always returns a <code>Token[]</code>, with error tokens for unrecognized characters and an EOF token at the end. Useful for syntax highlighting.</li>
               <li><strong><code>parse</code></strong> — runs <code>tokenize</code> then the parser. Pure; never throws. Returns the AST (or <code>null</code> if structure was unrecoverable) and the list of parse errors. Useful for live editor feedback.</li>
               <li><strong><code>validate</code></strong> — semantic validation against the configured semantic-layer model: unknown metrics, unknown dimensions, malformed time literals, range start-after-end, mixed-unit ranges, GROUP BY references that don't fit, ORDER BY references not in the result, and so on. Pure; never throws.</li>
               <li><strong><code>execute</code></strong> — composes all four phases (tokenize → parse → validate → execute) and dispatches on statement kind. Throws <a href="#execution-error"><code>TrueSpeechExecutionError</code></a> if any phase produced errors. The return type is the discriminated <a href="#result-types"><code>ExecuteResult</code></a> union.</li>
+              <li><strong><code>complete</code></strong> — Tab-style autocomplete. Given a source string and a cursor offset, returns the set of valid next tokens at that position. Materializes against the configured semantic layer (for metric / dimension names) and lexicon (for entry names). See <a href="#completion"><code>CompletionResult</code></a> for the result shape and the discoverability conventions.</li>
             </ul>
             <p>The <code>lexicon</code> option is optional: if omitted, <a href="#register-region"><code>REGISTER</code></a> and <a href="#check"><code>CHECK</code></a> throw at execute time and <a href="#compute"><code>COMPUTE</code></a> skips reconciliation (returns empty <code>reconciliation</code>, empty <code>historicalNotes</code>, and <code>decorations</code> with no matches).</p>
+            <p><code>timeLiteralYears</code> (added in v0.6.0) is optional: when set, <code>complete()</code> emits concrete year / quarter / month candidates (e.g. <code>2026</code>, <code>2026-Q1</code>, <code>2026-02</code>) at time-literal positions; when omitted, those positions surface a generic hint placeholder only. Days are intentionally excluded.</p>
           </section>
 
           <section id="adapter-interfaces" data-ref-section>
@@ -427,10 +432,10 @@
             <pre class="code-hl"><span class="kw">interface</span> LexiconAdapter {
   add(entry: LexiconEntry): <span class="kw">Promise</span>&lt;<span class="kw">void</span>&gt;;
   list(): <span class="kw">Promise</span>&lt;LexiconEntry[]&gt;;
-  remove(name: <span class="kw">string</span>): <span class="kw">Promise</span>&lt;<span class="kw">boolean</span>&gt;;   <span class="cmt">// added in v0.4.0; returns whether anything was removed</span>
+  remove(name: <span class="kw">string</span>): <span class="kw">Promise</span>&lt;<span class="kw">boolean</span>&gt;;   <span class="cmt">// added in v0.5.0; returns whether anything was removed</span>
 }</pre>
             <p>The adapter is a small add/list/remove triple — the runtime does all the matching, overlap and crossing math itself. <code>add</code> is called by <a href="#register-region"><code>REGISTER</code></a>; <code>list</code> is called by <a href="#check"><code>CHECK</code></a>, <a href="#show-lexicon"><code>SHOW LEXICON</code></a>, and reconciliation inside <a href="#compute"><code>COMPUTE</code></a>; <code>remove</code> is called by <a href="#unregister"><code>UNREGISTER</code></a> and should return <code>true</code> iff an entry by that name was actually removed. Storage is up to the implementer (in-memory, SQLite, a database table); duplicate names are allowed at the adapter level, in which case <code>remove</code> by convention drops the first match (or all of them — implementer's call).</p>
-            <p><strong>Breaking change in v0.4.0:</strong> the <code>remove</code> method is new. Embedders updating from v0.3.0 need to add it; the simplest in-memory implementation is a one-line <code>findIndex</code> / <code>splice</code>.</p>
+            <p><strong>Breaking change in v0.5.0:</strong> the <code>remove</code> method is new. Embedders updating from v0.3.0 need to add it; the simplest in-memory implementation is a one-line <code>findIndex</code> / <code>splice</code>.</p>
 
             <h4>OSI adapter</h4>
             <pre class="code-hl"><span class="kw">function</span> osiAdapter(runtime: OsiLikeRuntime): SemanticLayerAdapter;</pre>
@@ -635,6 +640,41 @@
   dimValues: <span class="kw">Record</span>&lt;<span class="kw">string</span>, <span class="kw">string</span> | <span class="kw">number</span>&gt;;
 }</pre>
           </section>
+
+          <section id="completion" data-ref-section>
+            <span class="search-keywords" hidden>completion autocomplete tab keypress editor surface completionresult candidates next token suggestion</span>
+            <h3>Completion</h3>
+            <p><a href="#truespeech-class"><code>TrueSpeech.complete(source, position)</code></a> returns the set of valid next tokens at a cursor position, suitable for driving a Tab-style autocomplete UI. The analyzer walks the tokens up to the cursor, re-derives what the parser would expect next, and materializes concrete candidates by querying the semantic layer (for metric / dimension names) and the lexicon (for entry names).</p>
+            <pre class="code-hl"><span class="kw">interface</span> CompletionResult {
+  prefix: <span class="kw">string</span>;          <span class="cmt">// what's already typed of the partial token</span>
+  start: <span class="kw">number</span>;          <span class="cmt">// source offset where the partial token starts</span>
+  end: <span class="kw">number</span>;            <span class="cmt">// source offset of the cursor</span>
+  candidates: Completion[];
+}
+
+<span class="kw">interface</span> Completion {
+  text: <span class="kw">string</span>;           <span class="cmt">// what to insert (empty for non-concrete kinds)</span>
+  kind: CompletionKind;
+  hint?: <span class="kw">string</span>;          <span class="cmt">// optional human-readable hint</span>
+}
+
+<span class="kw">type</span> CompletionKind =
+  | <span class="str">"keyword"</span>            <span class="cmt">// COMPUTE, REGISTER, OVER, AND, …</span>
+  | <span class="str">"soft-keyword"</span>       <span class="cmt">// region, boundary, lexicon, schema</span>
+  | <span class="str">"metric"</span>             <span class="cmt">// names from the semantic layer</span>
+  | <span class="str">"dimension"</span>          <span class="cmt">// dimensions of the active metric</span>
+  | <span class="str">"grain"</span>              <span class="cmt">// day / week / month / quarter / year</span>
+  | <span class="str">"operator"</span>           <span class="cmt">// =, !=, &gt;, &lt;, &gt;=, &lt;=</span>
+  | <span class="str">"lexicon-entry"</span>      <span class="cmt">// registered entry names</span>
+  | <span class="str">"time-literal"</span>       <span class="cmt">// "type a date" hint, no concrete suggestion</span>
+  | <span class="str">"string-literal"</span>     <span class="cmt">// "type quoted text" hint</span>
+  | <span class="str">"number-literal"</span>     <span class="cmt">// "type a number" hint</span>
+  | <span class="str">"identifier"</span>;        <span class="cmt">// "type a name" hint (e.g. for REGISTER &lt;name&gt;)</span></pre>
+            <p>Candidates are filtered to those whose <code>text</code> case-insensitively starts with <code>prefix</code>. Non-concrete kinds (<code>time-literal</code>, <code>string-literal</code>, <code>number-literal</code>, <code>identifier</code>) carry an empty <code>text</code> and a <code>hint</code> — consumers can render them as affordances ("type a date") rather than insertable choices, and they always pass the prefix filter.</p>
+            <p>Conventions: keywords are returned in uppercase (<code>COMPUTE</code>, <code>OVER</code>) and soft keywords in lowercase (<code>region</code>, <code>lexicon</code>). The language itself is case-insensitive — the casing on completions is a typographic convention, not a parser requirement.</p>
+            <p>Inside a string literal, the analyzer returns an empty candidate list (Tab is a pass-through). After the cursor is ignored — the analyzer reads only the tokens that fully precede the cursor plus the partial word at the cursor itself.</p>
+            <p>Added in v0.5.0. No adapter changes required; <code>complete()</code> reads through the existing <code>SemanticLayerAdapter</code> and (optionally) <code>LexiconAdapter</code>.</p>
+          </section>
         </section>
 
         <!-- ============================================================ -->
@@ -673,7 +713,7 @@
                 <tr><td><code>unknown_metric</code></td><td>Referenced metric is not in the semantic model.</td></tr>
                 <tr><td><code>unknown_dimension</code></td><td>Referenced dimension is not on the metric's dataset, or a categorical dimension was compared against a time literal, or <code>IN &lt;time-region&gt;</code> was applied to a non-time dimension.</td></tr>
                 <tr><td><code>missing_primary_time</code></td><td>The metric has no primary time dimension and the statement needs one.</td></tr>
-                <tr><td><code>incompatible_metrics</code></td><td>Multi-metric COMPUTE attempted (not supported in v0.4.0), or multi-metric IMPACTING / CHECK metrics don't share a primary time.</td></tr>
+                <tr><td><code>incompatible_metrics</code></td><td>Multi-metric COMPUTE attempted (not supported in v0.5.0), or multi-metric IMPACTING / CHECK metrics don't share a primary time.</td></tr>
                 <tr><td><code>grain_required</code></td><td>Time dimension in <code>GROUP BY</code> needs a grain, or a grain was applied to a non-time dimension.</td></tr>
                 <tr><td><code>range_start_after_end</code></td><td>A range literal whose start comes after its end.</td></tr>
                 <tr><td><code>mixed_unit_range</code></td><td>The two ends of a range are different calendar units.</td></tr>

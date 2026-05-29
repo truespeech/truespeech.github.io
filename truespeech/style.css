@@ -413,9 +413,12 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   border: 1px solid #d8d4c5;
   border-radius: 6px;
   margin: 0 0 16px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* No `overflow: hidden` here — the autocomplete dropdown is
+     absolutely positioned below the input and needs to escape the
+     notebook's clipping rect. The input row's bottom corners are
+     shaped directly below to keep the radius looking right. */
 }
 
 .notebook-cells {
@@ -434,6 +437,9 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   padding: 10px 12px;
   background: #f8f6ed;
   border-top: 1px solid #e0dcc8;
+  /* Match the notebook's rounded bottom corners (notebook border-
+     radius is 6px; subtract its 1px border to land at 5px). */
+  border-radius: 0 0 5px 5px;
 }
 
 .notebook-cells:empty + .notebook-input {
@@ -448,8 +454,18 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   user-select: none;
 }
 
-.notebook-input-field {
+/* The editor wraps the textarea so the autocomplete dropdown can
+   be absolutely positioned beneath the input without breaking the
+   notebook-input row's flex layout. */
+
+.notebook-editor {
   flex: 1;
+  position: relative;
+}
+
+.notebook-input-field {
+  display: block;
+  width: 100%;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 13px;
   color: #1a1a1a;
@@ -466,6 +482,96 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 .notebook-input-field:focus {
   border-color: #c8c4b3;
   background: #fff;
+}
+
+/* Autocomplete dropdown — floats just below the input. Compact
+   rows showing the candidate text, its kind, and an optional hint.
+   The currently-highlighted candidate (during Tab-cycling) gets a
+   soft warm-gray background. */
+
+.notebook-completions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #c8c4b3;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.notebook-completion {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 10px;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.notebook-completion + .notebook-completion {
+  border-top: 1px solid #f0ece0;
+}
+
+.notebook-completion-active {
+  background: #f0ece0;
+}
+
+.notebook-completion-clickable {
+  cursor: pointer;
+}
+
+.notebook-completion-clickable:hover {
+  background: #f8f6ed;
+}
+
+.notebook-completion-clickable.notebook-completion-active:hover {
+  background: #e8e2d0;
+}
+
+.notebook-completion-text {
+  color: #1a1a1a;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.notebook-completion-hint-text {
+  font-style: italic;
+  color: #777;
+  font-weight: 400;
+}
+
+.notebook-completion-kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.notebook-completion-hint {
+  color: #666;
+  font-style: italic;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  flex: 1;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notebook-completions-empty {
+  padding: 6px 10px;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
 }
 
 .notebook-run-btn {
@@ -1354,205 +1460,10 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   margin: 0 0 16px;
 }
 
-/* Search panel — Thread 3: drops the card chrome (border + cream
-   background + header band). Now a plain section: small heading,
-   compact controls, results as plain rows in a .data-table. The code
-   cell renders plain monospace text — no inset code block. */
-
-.search-panel {
-  margin: 24px 0 0;
-}
-
-.search-panel-header {
-  margin-bottom: 12px;
-}
-
-.search-panel-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #555;
-  margin: 0 0 4px;
-}
-
-.search-panel-help {
-  font-size: 12px;
-  color: #888;
-  margin: 0;
-}
-
-.search-panel-controls {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
-  margin-bottom: 8px;
-}
-
-.search-panel-input {
-  flex: 1;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 13px;
-  color: #1a1a1a;
-  background: #fff;
-  border: 1px solid #c8c4b3;
-  border-radius: 4px;
-  padding: 7px 12px;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-.search-panel-input:focus {
-  border-color: #8a6d3b;
-}
-
-.search-panel-input:disabled {
-  background: #f3f1e6;
-  color: #888;
-}
-
-.search-panel-random-btn {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: #555;
-  background: #fff;
-  border: 1px solid #c8c4b3;
-  border-radius: 4px;
-  padding: 0 14px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.search-panel-random-btn:hover {
-  background: #f0ece0;
-  border-color: #8a6d3b;
-}
-
-.search-panel-status {
-  font-size: 11px;
-  color: #888;
-  font-style: italic;
-  margin: 0 0 8px;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-}
-
-.search-panel-results {
-  display: flex;
-  flex-direction: column;
-}
-
-.search-panel-empty {
-  font-size: 13px;
-  color: #888;
-  font-style: italic;
-  margin: 4px 0;
-}
-
-/* The results table reuses .data-table for chrome; .search-panel-table
-   is a hook for the column-width rule below and the actions-cell
-   right-alignment. */
-
-.search-panel-table {
-  width: 100%;
-}
-
-.search-panel-table td {
-  vertical-align: top;
-}
-
-.search-result-code-cell {
-  width: 42%;
-}
-
-.search-result-group {
-  display: inline-block;
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #555;
-  background: #f0ece0;
-  padding: 2px 7px;
-  border-radius: 3px;
-  margin-bottom: 6px;
-}
-
-/* Code is plain monospace text inside the cell — no inset block,
-   no surrounding border. The .data-table cell padding does the
-   spacing work. */
-
-.search-result-code {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 12px;
-  color: #2a2a2a;
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-x: auto;
-  line-height: 1.45;
-}
-
-.search-result-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #333;
-  line-height: 1.5;
-}
-
-.search-result-actions-cell {
-  white-space: nowrap;
-  text-align: right;
-}
-
-.search-result-btn {
-  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 11px;
-  font-weight: 600;
-  background: #fff;
-  border: 1px solid #c8c4b3;
-  border-radius: 3px;
-  padding: 4px 10px;
-  cursor: pointer;
-  margin-left: 6px;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.search-result-btn:first-child {
-  margin-left: 0;
-}
-
-.search-result-btn:hover {
-  background: #f0ece0;
-  border-color: #8a6d3b;
-}
-
-.search-result-btn-run {
-  color: #1f4d1f;
-  background: #e8f5e8;
-  border-color: #b8d8b8;
-}
-
-.search-result-btn-run:hover {
-  background: #d8eed8;
-  border-color: #5b8d5b;
-}
-
-@media (max-width: 720px) {
-  .search-result-row {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .search-result-code-cell,
-  .search-result-desc-cell,
-  .search-result-actions-cell {
-    width: auto;
-    padding: 10px 14px;
-    text-align: left;
-  }
-}
+/* (Sample library + search panel removed in the v0.5.0 sandbox pass;
+   .search-panel*, .search-result*, .sandbox-hints* rules deleted.
+   Discoverability now comes from Tab autocomplete in the notebook
+   input — see .notebook-completions* near the top of the file.) */
 
 /* ===========================================================================
    v0.4.0 SHOW / UNREGISTER cell content. These complement the existing
@@ -1581,41 +1492,5 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
    .nb-metric-name defined earlier alongside the other notebook-cell
    primitives.) */
 
-/* Sandbox hints card — small callout between the intro and the
-   workspace pointing users at the data-dictionary statements.
-   Cream background + warm-gray border to mark it as a callout vs.
-   body content. */
-
-.sandbox-hints {
-  background: #f8f6ed;
-  border: 1px solid #d8d4c5;
-  border-radius: 6px;
-  padding: 14px 16px;
-  margin: 0 0 24px;
-}
-
-.sandbox-hints-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #555;
-  margin: 0 0 10px;
-}
-
-.sandbox-hints-list {
-  margin: 0;
-  padding-left: 18px;
-  color: #333;
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.sandbox-hints-list li {
-  margin: 0;
-}
-
-.sandbox-hints-list code {
-  background: #f0ece0;
-  font-size: 13px;
-}
+/* (.sandbox-hints* rules removed alongside the hints-card HTML —
+   see the note above the .search-panel removal block.) */

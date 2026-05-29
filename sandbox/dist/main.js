@@ -16,8 +16,6 @@
 import { IMPORTS } from "./config.js";
 import { initDatabase, query as dbQuery } from "./db.js";
 import { createNotebook } from "./notebook.js";
-import { createSearchPanel } from "./search-panel.js";
-import { SAMPLES } from "./samples.js";
 // In-memory LexiconAdapter with delete/reset extensions for the panel.
 class MemoryLexicon {
     entries = [];
@@ -132,6 +130,10 @@ async function main() {
             semanticLayer: tsModule.osiAdapter(osi),
             database: { execute: dbQuery },
             lexicon,
+            // NorthStar's data corpus spans Jan 2025 – Apr 2026; feed those
+            // years to the runtime so Tab at time-literal positions surfaces
+            // concrete year / quarter / month candidates.
+            timeLiteralYears: [2025, 2026],
         });
         for (const stmt of SEED_STATEMENTS) {
             await ts.execute(stmt);
@@ -139,28 +141,15 @@ async function main() {
         lexicon.snapshotSeed();
         loadingEl.remove();
         const notebook = createNotebook({
-            placeholder: "Enter a COMPUTE, REGISTER, CHECK, SHOW, or UNREGISTER statement…",
+            placeholder: "Enter a TS statement — press Tab to see what's valid here",
             onSubmit: (source) => handleSubmit(source, ts, tsModule, notebook),
+            onComplete: (source, position) => ts.complete(source, position),
         });
         // (Reset-lexicon affordance removed — users restore the seed by
-        // reloading the page, called out in the intro paragraph.)
-        const searchPanel = createSearchPanel({
-            samples: SAMPLES,
-            onCopy: async (code) => {
-                try {
-                    await navigator.clipboard.writeText(code);
-                }
-                catch {
-                    console.warn("Clipboard write failed; user must copy manually.");
-                }
-            },
-            onRun: (code) => {
-                notebook.element.scrollIntoView({ behavior: "smooth", block: "start" });
-                notebook.submit(code);
-            },
-        });
+        // reloading the page, called out in the intro paragraph.
+        // Sample library + search panel removed — discoverability now
+        // comes from Tab autocomplete in the notebook input.)
         container.appendChild(notebook.element);
-        container.appendChild(searchPanel.element);
         notebook.focus();
     }
     catch (err) {
