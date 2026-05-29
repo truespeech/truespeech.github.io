@@ -486,15 +486,23 @@ function renderResultTable(
       if (decoration.matches.length > 0) {
         // Dedupe by entry name — a single entry with multiple
         // overlapping IMPACTING clauses produces multiple matches but
-        // should show up once.
+        // should show up once. For boundary matches, the side
+        // (before / after / straddles) is per-row context worth
+        // surfacing in the note: a quarter on either side of an AOV
+        // redefinition wants to be tagged "(before)" vs "(after)"
+        // so the operator knows which regime this row sits in.
         const seen = new Set<string>();
-        const names: string[] = [];
+        const labels: string[] = [];
         for (const m of decoration.matches) {
           if (seen.has(m.entry.name)) continue;
           seen.add(m.entry.name);
-          names.push(m.entry.name);
+          if (m.kind === "boundary") {
+            labels.push(`${m.entry.name} (${m.side})`);
+          } else {
+            labels.push(m.entry.name);
+          }
         }
-        noteTd.textContent = names.join(", ");
+        noteTd.textContent = labels.join(", ");
       }
       tr.appendChild(noteTd);
     }
