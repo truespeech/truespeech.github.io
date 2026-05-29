@@ -469,9 +469,11 @@ function renderResultTable(
       tr.classList.add(`nb-row-${decoration.severity}`);
     }
     const metricColIdx = result.results.columns.length - 1;
+    const metricName = result.results.columns[metricColIdx];
     for (let j = 0; j < result.results.columns.length; j++) {
       const td = document.createElement("td");
-      td.textContent = formatCellValue(row[j], grainByCol.get(j), tsModule);
+      const format = j === metricColIdx ? METRIC_FORMATS[metricName] : undefined;
+      td.textContent = formatCellValue(row[j], grainByCol.get(j), format, tsModule);
       if (j === metricColIdx && decoration.severity) {
         td.classList.add("nb-cell-value");
       }
@@ -502,15 +504,42 @@ function renderResultTable(
   return wrap;
 }
 
+// Per-metric display format for the metric column in COMPUTE results.
+// Anything not in the map renders with the default numeric formatting
+// (integer values plain; fractional values to two decimals).
+type MetricFormat = "currency";
+const METRIC_FORMATS: Record<string, MetricFormat> = {
+  total_sales: "currency",
+  average_order_value: "currency",
+};
+
+const USD = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  // Show cents only when the value actually has them ($5,302.82),
+  // and omit them when it doesn't ($5,302).
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
 function formatCellValue(
   val: string | number | null,
   grain: Grain | undefined,
+  format: MetricFormat | undefined,
   tsModule: TsRuntimeApi
 ): string {
   if (val === null || val === undefined) return "NULL";
   if (grain && typeof val === "string") {
     const iso = val.slice(0, 10);
     return tsModule.formatTimeBucket(iso, grain);
+  }
+  // DuckDB-WASM returns DECIMAL aggregates (e.g. SUM over a DECIMAL
+  // column) as strings to preserve precision. When the column wants a
+  // currency format, coerce numeric-looking strings to Number so we
+  // can run them through Intl.NumberFormat.
+  if (format === "currency") {
+    const n = typeof val === "number" ? val : Number(val);
+    if (Number.isFinite(n)) return USD.format(n);
   }
   if (typeof val === "number") {
     if (Number.isInteger(val)) return val.toString();
