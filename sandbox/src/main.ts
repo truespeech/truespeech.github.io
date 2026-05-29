@@ -411,9 +411,10 @@ function renderComputeCell(
   // Primary result table.
   output.appendChild(renderResultTable(result, tsModule));
 
-  // Reconciliation block (per-entry detail).
+  // Reconciliation block (per-entry detail). COMPUTE is single-metric,
+  // so the impacted-metrics column is redundant — pass omitMetrics.
   if (result.reconciliation.length > 0) {
-    output.appendChild(renderReconciliationBlock(result.reconciliation));
+    output.appendChild(renderReconciliationBlock(result.reconciliation, true));
   }
 
   // Historical notes (entirely-pre-cut queries).
@@ -481,11 +482,19 @@ function renderResultTable(
     }
     if (hasNotes) {
       const noteTd = document.createElement("td");
-      noteTd.className = "nb-cell-note";
+      noteTd.className = "nb-cell-note nb-cell-mono";
       if (decoration.matches.length > 0) {
-        noteTd.textContent = decoration.matches
-          .map((m) => formatRowMatchNote(m, tsModule))
-          .join("; ");
+        // Dedupe by entry name — a single entry with multiple
+        // overlapping IMPACTING clauses produces multiple matches but
+        // should show up once.
+        const seen = new Set<string>();
+        const names: string[] = [];
+        for (const m of decoration.matches) {
+          if (seen.has(m.entry.name)) continue;
+          seen.add(m.entry.name);
+          names.push(m.entry.name);
+        }
+        noteTd.textContent = names.join(", ");
       }
       tr.appendChild(noteTd);
     }
@@ -548,92 +557,42 @@ function formatCellValue(
   return String(val);
 }
 
-function formatRowMatchNote(m: LexiconMatch, tsModule: TsRuntimeApi): string {
-  if (m.kind === "region") {
-    return `⚠ ${m.entry.name} · ${tsModule.renderRegion(m.overlap)}`;
-  }
-  if (m.side === "straddles") {
-    return `✗ ${m.entry.name} · straddles cut at ${m.crossedAt}`;
-  }
-  const label =
-    m.side === "before" ? m.entry.before.label : m.entry.after.label;
-  return `┃ ${m.entry.name} · ${m.side}: ${label}`;
-}
-
-// Reconciliation: plain table, one row per matching entry. Region
-// rows show the entry's description in the Detail column; boundary
-// rows stack before / after regime lines plus a change sentence.
-function renderReconciliationBlock(matches: LexiconMatch[]): HTMLElement {
+// Lexicon entries in scope for the query — the same two tables the
+// SHOW LEXICON cell uses, narrowed to entries that the runtime found
+// relevant to this COMPUTE / CHECK. A single entry can produce
+// multiple matches (e.g. multi-impact regions); dedupe by entry name
+// before rendering. `omitMetrics` hides the "Impacted metrics" column
+// in single-metric contexts (today's COMPUTE), where it would just
+// repeat the queried metric for every row.
+function renderReconciliationBlock(
+  matches: LexiconMatch[],
+  omitMetrics = false
+): HTMLElement {
   const wrap = document.createElement("section");
   wrap.className = "nb-block";
 
   const header = document.createElement("p");
   header.className = "nb-block-header";
-  header.textContent =
-    matches.length === 1
-      ? "Reconciliation · 1 entry matched"
-      : `Reconciliation · ${matches.length} entries matched`;
+  header.textContent = "Lexicon entries in scope";
   wrap.appendChild(header);
 
-  const table = document.createElement("table");
-  table.className = "data-table";
-  const thead = document.createElement("thead");
-  const headRow = document.createElement("tr");
-  for (const col of ["Kind", "Entry", "Metric · locus", "Detail"]) {
-    const th = document.createElement("th");
-    th.textContent = col;
-    headRow.appendChild(th);
-  }
-  thead.appendChild(headRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
+  const seen = new Set<string>();
+  const regions: RegionLexiconEntry[] = [];
+  const boundaries: BoundaryLexiconEntry[] = [];
   for (const m of matches) {
-    tbody.appendChild(renderMatchRow(m));
+    if (seen.has(m.entry.name)) continue;
+    seen.add(m.entry.name);
+    if (m.kind === "region") regions.push(m.entry);
+    else boundaries.push(m.entry);
   }
-  table.appendChild(tbody);
-  wrap.appendChild(table);
+
+  if (regions.length > 0) {
+    wrap.appendChild(renderRegionsTable(regions, omitMetrics));
+  }
+  if (boundaries.length > 0) {
+    wrap.appendChild(renderBoundariesTable(boundaries, omitMetrics));
+  }
   return wrap;
-}
-
-function renderMatchRow(m: LexiconMatch): HTMLElement {
-  const tr = document.createElement("tr");
-
-  const kindTd = document.createElement("td");
-  const tag = document.createElement("span");
-  tag.className = `kind-tag kind-${m.kind}`;
-  tag.textContent = m.kind;
-  kindTd.appendChild(tag);
-  tr.appendChild(kindTd);
-
-  const nameTd = document.createElement("td");
-  nameTd.className = "nb-cell-mono";
-  nameTd.textContent = m.entry.name;
-  tr.appendChild(nameTd);
-
-  const metricTd = document.createElement("td");
-  metricTd.className = "nb-cell-mono nb-cell-muted";
-  metricTd.textContent = m.kind === "region"
-    ? m.impact.metric
-    : `${m.metric} · cut at ${m.crossedAt}`;
-  tr.appendChild(metricTd);
-
-  const detailTd = document.createElement("td");
-  if (m.kind === "region") {
-    detailTd.textContent = m.entry.description;
-  } else {
-    detailTd.appendChild(renderRegimeLine("before", m.entry.before));
-    detailTd.appendChild(renderRegimeLine("after", m.entry.after));
-    const change = document.createElement("p");
-    change.className = "nb-detail-foot";
-    change.textContent =
-      m.entry.changeDescription ??
-      `On ${m.crossedAt}, ${m.metric} shifted from "${m.entry.before.label}" to "${m.entry.after.label}".`;
-    detailTd.appendChild(change);
-  }
-  tr.appendChild(detailTd);
-
-  return tr;
 }
 
 // One regime line — used in reconciliation rows, the historical
@@ -863,12 +822,23 @@ function renderShowLexiconCell(
   return cell;
 }
 
-function renderRegionsTable(regions: RegionLexiconEntry[]): HTMLElement {
+// `omitMetrics` hides the "Impacted metrics" column. We pass it from
+// the COMPUTE reconciliation block, where COMPUTE is single-metric
+// and the column is redundant. SHOW LEXICON and CHECK keep the
+// column because they can span multiple metrics.
+function renderRegionsTable(
+  regions: RegionLexiconEntry[],
+  omitMetrics = false
+): HTMLElement {
+  const columns = omitMetrics
+    ? ["Region", "Scope", "Description"]
+    : ["Region", "Impacted metrics", "Scope", "Description"];
+
   const table = document.createElement("table");
   table.className = "data-table";
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  for (const col of ["Region", "Impacted metrics", "Scope", "Description"]) {
+  for (const col of columns) {
     const th = document.createElement("th");
     th.textContent = col;
     headRow.appendChild(th);
@@ -885,10 +855,12 @@ function renderRegionsTable(regions: RegionLexiconEntry[]): HTMLElement {
     nameTd.textContent = e.name;
     tr.appendChild(nameTd);
 
-    const metricsTd = document.createElement("td");
-    metricsTd.className = "nb-cell-mono";
-    metricsTd.textContent = uniqueImpactMetrics(e).join(", ");
-    tr.appendChild(metricsTd);
+    if (!omitMetrics) {
+      const metricsTd = document.createElement("td");
+      metricsTd.className = "nb-cell-mono";
+      metricsTd.textContent = uniqueImpactMetrics(e).join(", ");
+      tr.appendChild(metricsTd);
+    }
 
     const scopeTd = document.createElement("td");
     scopeTd.className = "nb-cell-mono";
@@ -905,12 +877,19 @@ function renderRegionsTable(regions: RegionLexiconEntry[]): HTMLElement {
   return table;
 }
 
-function renderBoundariesTable(boundaries: BoundaryLexiconEntry[]): HTMLElement {
+function renderBoundariesTable(
+  boundaries: BoundaryLexiconEntry[],
+  omitMetrics = false
+): HTMLElement {
+  const columns = omitMetrics
+    ? ["Boundary", "Date", "Before", "After"]
+    : ["Boundary", "Impacted metrics", "Date", "Before", "After"];
+
   const table = document.createElement("table");
   table.className = "data-table";
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  for (const col of ["Boundary", "Impacted metrics", "Date", "Before", "After"]) {
+  for (const col of columns) {
     const th = document.createElement("th");
     th.textContent = col;
     headRow.appendChild(th);
@@ -927,10 +906,12 @@ function renderBoundariesTable(boundaries: BoundaryLexiconEntry[]): HTMLElement 
     nameTd.textContent = e.name;
     tr.appendChild(nameTd);
 
-    const metricsTd = document.createElement("td");
-    metricsTd.className = "nb-cell-mono";
-    metricsTd.textContent = e.metrics.join(", ");
-    tr.appendChild(metricsTd);
+    if (!omitMetrics) {
+      const metricsTd = document.createElement("td");
+      metricsTd.className = "nb-cell-mono";
+      metricsTd.textContent = e.metrics.join(", ");
+      tr.appendChild(metricsTd);
+    }
 
     const dateTd = document.createElement("td");
     dateTd.className = "nb-cell-mono";
