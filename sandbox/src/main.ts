@@ -1020,75 +1020,113 @@ function renderShowSchemaCell(
     return cell;
   }
 
-  for (const m of result.metrics) {
-    output.appendChild(renderMetricBlock(m));
-  }
+  output.appendChild(renderSchemaMetricsTable(result.metrics));
+  output.appendChild(renderSchemaDimensionsTable(result.metrics));
   return cell;
 }
 
-// SHOW SCHEMA per-metric section — plain header + optional
-// description + plain dimensions table. No container chrome.
-function renderMetricBlock(m: MetricSummary): HTMLElement {
-  const wrap = document.createElement("section");
-  wrap.className = "nb-metric";
-
-  const header = document.createElement("p");
-  header.className = "nb-metric-header";
-  const name = document.createElement("span");
-  name.className = "nb-metric-name";
-  name.textContent = m.name;
-  header.appendChild(name);
-  if (m.primaryTime) {
-    const primary = document.createElement("span");
-    primary.className = "nb-cell-muted nb-cell-mono";
-    primary.textContent = ` · primary time: ${m.primaryTime}`;
-    header.appendChild(primary);
+function renderSchemaMetricsTable(metrics: MetricSummary[]): HTMLElement {
+  const table = document.createElement("table");
+  table.className = "data-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const col of ["Metric", "Description", "Primary time"]) {
+    const th = document.createElement("th");
+    th.textContent = col;
+    headRow.appendChild(th);
   }
-  wrap.appendChild(header);
+  thead.appendChild(headRow);
+  table.appendChild(thead);
 
-  if (m.description) {
-    const desc = document.createElement("p");
-    desc.className = "nb-detail-desc";
-    desc.textContent = m.description;
-    wrap.appendChild(desc);
+  const tbody = document.createElement("tbody");
+  for (const m of metrics) {
+    const tr = document.createElement("tr");
+
+    const nameTd = document.createElement("td");
+    nameTd.className = "nb-cell-mono";
+    nameTd.textContent = m.name;
+    tr.appendChild(nameTd);
+
+    const descTd = document.createElement("td");
+    descTd.textContent = m.description ?? "";
+    tr.appendChild(descTd);
+
+    const timeTd = document.createElement("td");
+    timeTd.className = "nb-cell-mono";
+    timeTd.textContent = m.primaryTime ?? "—";
+    tr.appendChild(timeTd);
+
+    tbody.appendChild(tr);
   }
+  table.appendChild(tbody);
 
-  if (m.dimensions.length > 0) {
-    const table = document.createElement("table");
-    table.className = "data-table";
-    const thead = document.createElement("thead");
-    const headRow = document.createElement("tr");
-    for (const col of ["Dimension", "Type", "Dataset"]) {
-      const th = document.createElement("th");
-      th.textContent = col;
-      headRow.appendChild(th);
-    }
-    thead.appendChild(headRow);
-    table.appendChild(thead);
+  return table;
+}
 
-    const tbody = document.createElement("tbody");
+// Dimensions table is the inverse of the per-metric view: one row per
+// unique dimension name, with a comma-joined list of the metrics that
+// expose it. Time-primary dimensions get the "time (primary)" type
+// even when they're only primary for a subset of the listed metrics.
+function renderSchemaDimensionsTable(metrics: MetricSummary[]): HTMLElement {
+  interface DimRow {
+    name: string;
+    isTime: boolean;
+    isPrimaryAnywhere: boolean;
+    metrics: string[];
+  }
+  const byName = new Map<string, DimRow>();
+  for (const m of metrics) {
     for (const d of m.dimensions) {
-      const tr = document.createElement("tr");
-      const nameTd = document.createElement("td");
-      nameTd.innerHTML = `<code>${d.name}</code>`;
-      tr.appendChild(nameTd);
-      const typeTd = document.createElement("td");
-      typeTd.textContent = d.isTime
-        ? d.name === m.primaryTime
-          ? "time (primary)"
-          : "time"
-        : "categorical";
-      tr.appendChild(typeTd);
-      const datasetTd = document.createElement("td");
-      datasetTd.textContent = d.dataset;
-      tr.appendChild(datasetTd);
-      tbody.appendChild(tr);
+      let row = byName.get(d.name);
+      if (!row) {
+        row = { name: d.name, isTime: d.isTime, isPrimaryAnywhere: false, metrics: [] };
+        byName.set(d.name, row);
+      }
+      row.metrics.push(m.name);
+      if (m.primaryTime === d.name) row.isPrimaryAnywhere = true;
     }
-    table.appendChild(tbody);
-    wrap.appendChild(table);
   }
+  const rows = [...byName.values()];
 
-  return wrap;
+  const table = document.createElement("table");
+  table.className = "data-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  for (const col of ["Dimension", "Type", "Metrics"]) {
+    const th = document.createElement("th");
+    th.textContent = col;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const d of rows) {
+    const tr = document.createElement("tr");
+
+    const nameTd = document.createElement("td");
+    nameTd.className = "nb-cell-mono";
+    nameTd.textContent = d.name;
+    tr.appendChild(nameTd);
+
+    const typeTd = document.createElement("td");
+    typeTd.textContent = d.isPrimaryAnywhere
+      ? "time (primary)"
+      : d.isTime
+        ? "time"
+        : "categorical";
+    tr.appendChild(typeTd);
+
+    const metricsTd = document.createElement("td");
+    metricsTd.className = "nb-cell-mono nb-cell-muted";
+    metricsTd.textContent = d.metrics.join(", ");
+    tr.appendChild(metricsTd);
+
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+
+  return table;
 }
 
 // ===========================================================================

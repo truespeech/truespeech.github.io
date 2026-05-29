@@ -243,15 +243,29 @@ export function createNotebook(opts: NotebookOptions): Notebook {
     autosize();
   }
 
+  // Move the active cycle by `delta` steps (+1 forward, -1 back),
+  // insert the new candidate, and re-render the dropdown. When the
+  // cycle has no inserted candidate yet (index === -1, e.g. just after
+  // Tab opened the dropdown), forward picks the first entry and back
+  // picks the last. Shared by Tab cycling and Arrow-key navigation.
+  function advanceCycle(delta: number): void {
+    if (!cycle || cycle.candidates.length === 0) return;
+    const n = cycle.candidates.length;
+    if (cycle.index === -1) {
+      cycle.index = delta > 0 ? 0 : n - 1;
+    } else {
+      cycle.index = ((cycle.index + delta) % n + n) % n;
+    }
+    insertCandidate(cycle.candidates[cycle.index], cycle);
+    renderDropdown(cycle.candidates, cycle.index, selectFromDropdown);
+  }
+
   async function handleTab(): Promise<void> {
     if (!opts.onComplete) return;
 
     // If we're already cycling, advance to the next candidate.
     if (cycle) {
-      if (cycle.candidates.length === 0) return;
-      cycle.index = (cycle.index + 1) % cycle.candidates.length;
-      insertCandidate(cycle.candidates[cycle.index], cycle);
-      renderDropdown(cycle.candidates, cycle.index, selectFromDropdown);
+      advanceCycle(1);
       return;
     }
 
@@ -317,6 +331,14 @@ export function createNotebook(opts: NotebookOptions): Notebook {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       doSubmit();
+      return;
+    }
+    // Arrow keys navigate the autocomplete dropdown when it's open
+    // (and has a cycle). Without that, the keys fall through to the
+    // history-navigation handlers below.
+    if (cycle && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      advanceCycle(e.key === "ArrowDown" ? 1 : -1);
       return;
     }
     if (e.key === "ArrowUp" && input.selectionStart === 0) {
