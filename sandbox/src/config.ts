@@ -17,7 +17,7 @@ function resolve(relativePath: string): string {
 export const IMPORTS = {
   trueSpeech: isDev
     ? resolve("../../../truespeech/dist/index.js")
-    : "https://cdn.jsdelivr.net/gh/truespeech/truespeech@v0.6.0/dist/index.js",
+    : "https://cdn.jsdelivr.net/gh/truespeech/truespeech@v0.7.0/dist/index.js",
   osiRuntime: isDev
     ? resolve("../../../osi-runtime/dist/index.js")
     : "https://cdn.jsdelivr.net/gh/truespeech/osi-runtime@v0.2.0/dist/index.js",

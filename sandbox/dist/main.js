@@ -559,12 +559,13 @@ function renderErrorCell(source, errors, tsModule) {
 // ===========================================================================
 function renderShowLexiconCell(source, result) {
     const { cell, output } = renderCellShell(source, "show-lexicon");
-    // Filtered + not found: soft informational note. The runtime returns
-    // an empty entries array for this case (not an error).
-    if (result.filter && result.entries.length === 0) {
+    // Filtered + nothing matched: soft informational note. The runtime
+    // returns an empty entries array for this case (not an error).
+    if (result.filters && result.entries.length === 0) {
         const note = document.createElement("p");
         note.className = "nb-soft-note";
-        note.textContent = `· No entry named "${result.filter}"`;
+        const named = result.filters.map((f) => `"${f}"`).join(", ");
+        note.textContent = `· No entries matching ${named}`;
         output.appendChild(note);
         return cell;
     }
@@ -577,22 +578,20 @@ function renderShowLexiconCell(source, result) {
         output.appendChild(note);
         return cell;
     }
-    // Filtered + one match: detail view. Full impacts (regions) or
-    // full BEFORE/AFTER regimes (boundaries) plus the change description.
-    if (result.filter) {
-        output.appendChild(renderLexiconEntryDetail(result.entries[0]));
-        return cell;
-    }
-    // Unfiltered, ≥1 entries: compact table view.
-    output.appendChild(renderLexiconListTable(result.entries));
+    const regions = result.entries.filter((e) => e.kind === "region");
+    const boundaries = result.entries.filter((e) => e.kind === "boundary");
+    if (regions.length > 0)
+        output.appendChild(renderRegionsTable(regions));
+    if (boundaries.length > 0)
+        output.appendChild(renderBoundariesTable(boundaries));
     return cell;
 }
-function renderLexiconListTable(entries) {
+function renderRegionsTable(regions) {
     const table = document.createElement("table");
-    table.className = "data-table nb-show-table";
+    table.className = "data-table";
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
-    for (const col of ["Kind", "Name", "Scope", "Summary"]) {
+    for (const col of ["Region", "Impacted metrics", "Scope", "Description"]) {
         const th = document.createElement("th");
         th.textContent = col;
         headRow.appendChild(th);
@@ -600,144 +599,105 @@ function renderLexiconListTable(entries) {
     thead.appendChild(headRow);
     table.appendChild(thead);
     const tbody = document.createElement("tbody");
-    for (const e of entries) {
+    for (const e of regions) {
         const tr = document.createElement("tr");
-        const kindTd = document.createElement("td");
-        const tag = document.createElement("span");
-        tag.className = `kind-tag kind-${e.kind}`;
-        tag.textContent = e.kind;
-        kindTd.appendChild(tag);
-        tr.appendChild(kindTd);
         const nameTd = document.createElement("td");
-        nameTd.className = "nb-show-name";
+        nameTd.className = "nb-cell-mono";
         nameTd.textContent = e.name;
         tr.appendChild(nameTd);
+        const metricsTd = document.createElement("td");
+        metricsTd.className = "nb-cell-mono";
+        metricsTd.textContent = uniqueImpactMetrics(e).join(", ");
+        tr.appendChild(metricsTd);
         const scopeTd = document.createElement("td");
-        scopeTd.className = "nb-show-scope";
-        scopeTd.textContent = scopeSummary(e);
+        scopeTd.className = "nb-cell-mono";
+        scopeTd.textContent = regionScopeSummary(e);
         tr.appendChild(scopeTd);
-        const summaryTd = document.createElement("td");
-        summaryTd.className = "nb-show-summary";
-        summaryTd.textContent = entrySummary(e);
-        tr.appendChild(summaryTd);
+        const descTd = document.createElement("td");
+        descTd.textContent = e.description;
+        tr.appendChild(descTd);
         tbody.appendChild(tr);
     }
     table.appendChild(tbody);
-    const wrap = document.createElement("div");
-    wrap.className = "nb-result-table-wrap";
-    wrap.appendChild(table);
-    const caption = document.createElement("div");
-    caption.className = "nb-result-caption";
-    caption.textContent = `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`;
-    wrap.appendChild(caption);
-    return wrap;
+    return table;
 }
-function scopeSummary(e) {
-    if (e.kind === "region") {
-        // Show the metric(s) and time range of the first impact; multi-impact
-        // entries get an "and N more" suffix.
-        if (e.impacts.length === 0)
-            return "—";
-        const first = e.impacts[0];
-        const timeStr = `${first.region.timeStart} → ${first.region.timeEnd}`;
-        const tail = e.impacts.length > 1 ? ` (+${e.impacts.length - 1} more)` : "";
-        return `${first.metric} · ${timeStr}${tail}`;
+function renderBoundariesTable(boundaries) {
+    const table = document.createElement("table");
+    table.className = "data-table";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const col of ["Boundary", "Impacted metrics", "Date", "Before", "After"]) {
+        const th = document.createElement("th");
+        th.textContent = col;
+        headRow.appendChild(th);
     }
-    const scope = e.constraints.length > 0
-        ? " · " + e.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")
-        : "";
-    return `${e.metrics.join(", ")} · cut at ${e.at}${scope}`;
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    for (const e of boundaries) {
+        const tr = document.createElement("tr");
+        const nameTd = document.createElement("td");
+        nameTd.className = "nb-cell-mono";
+        nameTd.textContent = e.name;
+        tr.appendChild(nameTd);
+        const metricsTd = document.createElement("td");
+        metricsTd.className = "nb-cell-mono";
+        metricsTd.textContent = e.metrics.join(", ");
+        tr.appendChild(metricsTd);
+        const dateTd = document.createElement("td");
+        dateTd.className = "nb-cell-mono";
+        // Constraints scoped to the cut land inline next to the date —
+        // they're attached to the boundary, not the metrics.
+        const scope = e.constraints.length > 0
+            ? ` · ${e.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")}`
+            : "";
+        dateTd.textContent = `${e.at}${scope}`;
+        tr.appendChild(dateTd);
+        const beforeTd = document.createElement("td");
+        beforeTd.textContent = e.before.description;
+        tr.appendChild(beforeTd);
+        const afterTd = document.createElement("td");
+        afterTd.textContent = e.after.description;
+        tr.appendChild(afterTd);
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    return table;
 }
-function entrySummary(e) {
-    if (e.kind === "region") {
-        return e.description.length > 80 ? e.description.slice(0, 77) + "…" : e.description;
+function uniqueImpactMetrics(e) {
+    const seen = new Set();
+    const out = [];
+    for (const impact of e.impacts) {
+        if (seen.has(impact.metric))
+            continue;
+        seen.add(impact.metric);
+        out.push(impact.metric);
     }
-    return `before: ${e.before.label} → after: ${e.after.label}`;
+    return out;
+}
+// Time range + categorical constraints across all impacts. When every
+// impact has the same time range, render it once; otherwise stack the
+// per-impact ranges. Constraints get appended with AND.
+function regionScopeSummary(e) {
+    if (e.impacts.length === 0)
+        return "—";
+    const ranges = e.impacts.map((i) => {
+        const time = `${i.region.timeStart} → ${i.region.timeEnd}`;
+        const constraints = i.region.constraints.length > 0
+            ? " AND " + i.region.constraints
+                .map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`)
+                .join(" AND ")
+            : "";
+        return time + constraints;
+    });
+    const unique = Array.from(new Set(ranges));
+    return unique.join("; ");
 }
 function formatConstraintValue(v) {
     if (Array.isArray(v)) {
         return `(${v.map((x) => (typeof x === "string" ? `'${x}'` : String(x))).join(", ")})`;
     }
     return typeof v === "string" ? `'${v}'` : String(v);
-}
-// SHOW LEXICON <name> detail — plain content, no card chrome. Header
-// is the kind tag + name; meta line is the impacts count or the cut
-// summary; for regions a small impacts table follows, for boundaries
-// the regime lines stack underneath.
-function renderLexiconEntryDetail(e) {
-    const wrap = document.createElement("section");
-    wrap.className = "nb-detail";
-    const header = document.createElement("p");
-    header.className = "nb-detail-header";
-    const tag = document.createElement("span");
-    tag.className = `kind-tag kind-${e.kind}`;
-    tag.textContent = e.kind;
-    header.appendChild(tag);
-    const name = document.createElement("span");
-    name.className = "nb-detail-name";
-    name.textContent = e.name;
-    header.appendChild(name);
-    wrap.appendChild(header);
-    if (e.kind === "region") {
-        const meta = document.createElement("p");
-        meta.className = "nb-detail-meta";
-        meta.textContent = `${e.impacts.length} impact${e.impacts.length === 1 ? "" : "s"}`;
-        wrap.appendChild(meta);
-        const table = document.createElement("table");
-        table.className = "data-table";
-        const thead = document.createElement("thead");
-        const headRow = document.createElement("tr");
-        for (const col of ["Metric", "Range", "Constraints"]) {
-            const th = document.createElement("th");
-            th.textContent = col;
-            headRow.appendChild(th);
-        }
-        thead.appendChild(headRow);
-        table.appendChild(thead);
-        const tbody = document.createElement("tbody");
-        for (const impact of e.impacts) {
-            const tr = document.createElement("tr");
-            const metricTd = document.createElement("td");
-            metricTd.className = "nb-cell-mono";
-            metricTd.textContent = impact.metric;
-            tr.appendChild(metricTd);
-            const rangeTd = document.createElement("td");
-            rangeTd.className = "nb-cell-mono";
-            rangeTd.textContent = `${impact.region.timeStart} → ${impact.region.timeEnd}`;
-            tr.appendChild(rangeTd);
-            const cTd = document.createElement("td");
-            cTd.className = "nb-cell-mono nb-cell-muted";
-            cTd.textContent = impact.region.constraints.length > 0
-                ? impact.region.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")
-                : "—";
-            tr.appendChild(cTd);
-            tbody.appendChild(tr);
-        }
-        table.appendChild(tbody);
-        wrap.appendChild(table);
-        const desc = document.createElement("p");
-        desc.className = "nb-detail-desc";
-        desc.textContent = `"${e.description}"`;
-        wrap.appendChild(desc);
-    }
-    else {
-        const meta = document.createElement("p");
-        meta.className = "nb-detail-meta";
-        const scope = e.constraints.length > 0
-            ? ` · ${e.constraints.map((c) => `${c.dimension} ${c.operator} ${formatConstraintValue(c.value)}`).join(" AND ")}`
-            : "";
-        meta.textContent = `Cut at ${e.at} · impacts ${e.metrics.join(", ")}${scope}`;
-        wrap.appendChild(meta);
-        wrap.appendChild(renderRegimeLine("before", e.before));
-        wrap.appendChild(renderRegimeLine("after", e.after));
-        if (e.changeDescription) {
-            const change = document.createElement("p");
-            change.className = "nb-detail-foot";
-            change.textContent = `Change: "${e.changeDescription}"`;
-            wrap.appendChild(change);
-        }
-    }
-    return wrap;
 }
 // ===========================================================================
 // SHOW SCHEMA cell — per-metric grouped sections

@@ -199,12 +199,13 @@
           <section id="show-lexicon" data-ref-section>
             <span class="search-keywords" hidden>show lexicon inspect entries describe list registered annotations introspection</span>
             <h3>SHOW LEXICON</h3>
-            <p>Surfaces lexicon entries for inspection. Without a filter, returns every entry currently in the lexicon. With a name filter, returns the single matching entry (or an empty list if no such entry exists; non-throwing).</p>
+            <p>Surfaces lexicon entries for inspection. Without filters, returns every entry currently in the lexicon. With a comma-separated name list, narrows to the listed entries; names that don't match any entry are silently dropped (non-throwing).</p>
             <pre class="code-hl"><span class="cmt"># grammar</span>
-<span class="kw">SHOW LEXICON</span> [&lt;name&gt;]</pre>
-            <pre class="code-hl"><span class="kw">SHOW LEXICON</span>                          <span class="cmt">-- every entry</span>
-<span class="kw">SHOW LEXICON</span> q1_data_quality_issue    <span class="cmt">-- one entry (or empty if not found)</span></pre>
-            <p>Returns a <a href="#result-types"><code>ShowLexiconResult</code></a> with the entry list and the echoed filter (if any). The entries are typed as the discriminated <a href="#lexicon-types"><code>LexiconEntry</code></a> union; consumers dispatch on <code>kind</code> to render region- vs boundary-shaped detail.</p>
+<span class="kw">SHOW LEXICON</span> [&lt;name&gt;[, &lt;name&gt;...]]</pre>
+            <pre class="code-hl"><span class="kw">SHOW LEXICON</span>                                  <span class="cmt">-- every entry</span>
+<span class="kw">SHOW LEXICON</span> q1_data_quality_issue            <span class="cmt">-- one entry</span>
+<span class="kw">SHOW LEXICON</span> q1_anomaly, aov_redef, ne_outage  <span class="cmt">-- three entries (added in v0.7.0)</span></pre>
+            <p>Returns a <a href="#result-types"><code>ShowLexiconResult</code></a> with the entry list and the echoed filter list (if any). The entries are typed as the discriminated <a href="#lexicon-types"><code>LexiconEntry</code></a> union; consumers dispatch on <code>kind</code> to render region- vs boundary-shaped detail.</p>
             <p>Requires a configured <a href="#adapter-interfaces"><code>LexiconAdapter</code></a>; throws otherwise.</p>
           </section>
 
@@ -478,8 +479,8 @@
 <span class="kw">interface</span> ShowLexiconResult {
   statement: <span class="str">"show"</span>;
   subject: <span class="str">"lexicon"</span>;
-  entries: LexiconEntry[];             <span class="cmt">// all entries, or [entry] / [] when filtered by name</span>
-  filter?: <span class="kw">string</span>;                    <span class="cmt">// echoes the optional name from SHOW LEXICON &lt;name&gt;</span>
+  entries: LexiconEntry[];             <span class="cmt">// all entries, or just those matching `filters`</span>
+  filters?: <span class="kw">string</span>[];                  <span class="cmt">// echoes the name list from SHOW LEXICON &lt;name&gt;[, ...]</span>
 }
 
 <span class="kw">interface</span> ShowSchemaResult {
