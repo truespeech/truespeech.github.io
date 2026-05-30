@@ -382,12 +382,16 @@ function renderCellShell(source: string, kind: string): {
   const cell = document.createElement("article");
   cell.className = `nb-cell nb-cell-${kind}`;
 
+  // Input header band: a small "input" eyebrow label above the
+  // command the user ran. The band's tint (set in CSS) is what
+  // distinguishes the typed input from the runtime output below it —
+  // no `ts>` prompt prefix.
   const input = document.createElement("div");
   input.className = "nb-cell-input";
-  const prompt = document.createElement("span");
-  prompt.className = "nb-cell-prompt";
-  prompt.textContent = "ts>";
-  input.appendChild(prompt);
+  const label = document.createElement("span");
+  label.className = "nb-cell-label";
+  label.textContent = "input";
+  input.appendChild(label);
   const sourceEl = document.createElement("pre");
   sourceEl.className = "nb-cell-source";
   sourceEl.textContent = source;

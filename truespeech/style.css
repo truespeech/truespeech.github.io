@@ -408,42 +408,42 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
    connector + DB console. Cells stack vertically; each carries the
    input source, structured output, and a collapsible SQL inspector. */
 
+/* The notebook is a vertical column of free-standing cards: one card
+   per executed cell, then the live-input card at the bottom. The old
+   single bordered container was dissolved (each card now carries its
+   own border) so cell boundaries read at a glance. */
 .notebook {
-  background: #fdfcf6;
-  border: 1px solid #d8d4c5;
-  border-radius: 6px;
-  margin: 0 0 16px;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  /* No `overflow: hidden` here — the autocomplete dropdown is
-     absolutely positioned below the input and needs to escape the
-     notebook's clipping rect. The input row's bottom corners are
-     shaped directly below to keep the radius looking right. */
+  gap: 16px;
 }
 
 .notebook-cells {
   display: flex;
   flex-direction: column;
+  gap: 16px;
 }
 
 .notebook-cells:empty {
   display: none;
 }
 
+/* Live-input card — matches the executed-cell card chrome (border,
+   radius) on the warmer paper tone, so the place you type reads as a
+   sibling of the cells above it. No `overflow: hidden` so the
+   autocomplete dropdown can escape the card's clipping rect; the
+   dropdown is positioned relative to .notebook-editor below. */
+/* Live-input "incipient cell" — same warm fill and border as a real
+   cell, so it reads as a blank cell waiting to be run. */
 .notebook-input {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
-  background: #f8f6ed;
-  border-top: 1px solid #e0dcc8;
-  /* Match the notebook's rounded bottom corners (notebook border-
-     radius is 6px; subtract its 1px border to land at 5px). */
-  border-radius: 0 0 5px 5px;
-}
-
-.notebook-cells:empty + .notebook-input {
-  border-top: none;
+  background: #ece6d8;
+  border: 1px solid #d2ccba;
+  border-radius: 6px;
 }
 
 .notebook-prompt {
@@ -592,41 +592,46 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   background: #d8eed8;
 }
 
-/* Cells */
+/* Cells — each executed statement is a free-standing card: an input
+   header band (the command you ran) over an output body (what the
+   runtime returned). overflow:hidden clips the header band's top
+   corners to the card radius. */
 
+/* Warm body fill (not white) so each card stands off the white page
+   gaps and reads as its own filled entity. */
 .nb-cell {
-  border-bottom: 1px solid #e8e4d4;
-  padding: 12px 14px 16px;
+  background: #ece6d8;
+  border: 1px solid #d2ccba;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-.nb-cell:last-child {
-  border-bottom: none;
-}
-
+/* Input header band: a step darker than the warm body, so it reads as
+   the cell's own header. Distinctly darker than the (white-with-light-
+   header) tables in the body below, so cell-chrome and table-chrome
+   never look the same. */
 .nb-cell-input {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 10px;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 14px;
+  background: #e3dac3;
+  border-bottom: 1px solid #d2ccba;
 }
 
-.nb-cell-prompt {
+.nb-cell-label {
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
-  font-size: 13px;
-  color: #777;
-  padding-top: 1px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #998f73;
   user-select: none;
 }
 
 .nb-cell-source {
-  flex: 1;
   font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
   font-size: 13px;
   color: #1a1a1a;
-  background: #f0ece0;
-  border: 1px solid #d8d4c5;
-  border-radius: 3px;
-  padding: 6px 10px;
   margin: 0;
   white-space: pre-wrap;
   overflow-x: auto;
@@ -637,6 +642,7 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 14px;
 }
 
 /* Result tables */
@@ -655,8 +661,8 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 }
 
 /* Severity on result rows: colored text only (no background tint).
-   The note column also leads with an icon (⚠ / ✗) so the signal
-   reads even when the row's metric value is empty. */
+   Amber = warn (region overlap, or a boundary cleanly on one side);
+   red = error (the row's bucket straddles a boundary cut). */
 
 .nb-row-warn .nb-cell-value,
 .nb-row-warn .nb-cell-note {
@@ -873,11 +879,12 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   color: #1f4d1f;
 }
 
-/* Error cell */
+/* Error cell — tint the input header band red so a failed statement
+   is obvious at the card level. */
 
-.nb-cell-error .nb-cell-source {
+.nb-cell-error .nb-cell-input {
   background: #fdecec;
-  border-color: #f0b0b0;
+  border-bottom-color: #f0b0b0;
 }
 
 .nb-error {
@@ -1422,6 +1429,9 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   font-size: 13px;
   width: 100%;
   color: #2a2a2a;
+  /* White inset against the warm cell body — table cells inherit this;
+     the header (.data-table th) keeps its own faint tint. */
+  background: #fff;
 }
 
 .data-table caption {
@@ -1436,14 +1446,18 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 
 .data-table th,
 .data-table td {
-  border: 1px solid #d8d4c5;
+  /* Lighter than the cell-card border (#d2ccba) so the card's edge
+     stays the dominant boundary and the table reads as nested. */
+  border: 1px solid #e6e1d3;
   padding: 6px 10px;
   text-align: left;
   vertical-align: top;
 }
 
 .data-table th {
-  background: #ece8d8;
+  /* Much lighter than the cell input band (#ece3cd) — the table is
+     inside the card, so its header is the lightest chrome level. */
+  background: #f6f2e8;
   font-weight: 600;
   color: #444;
 }
@@ -1453,8 +1467,12 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
   font-size: 12px;
 }
 
-/* Workspace container — the demo mount point. The lexicon panel,
-   notebook, and search panel are injected by main.ts. */
+/* Workspace container — the demo mount point. The notebook is
+   injected by main.ts. No backdrop fill: the cells (and the live
+   "incipient cell" input at the bottom) are distinct cards floating
+   directly on the page, with the page white showing through the 16px
+   gaps between them. Each card reads as its own entity via its border
+   and tinted header band, not via a contrasting surface. */
 
 .sandbox-workspace {
   margin: 0 0 16px;
