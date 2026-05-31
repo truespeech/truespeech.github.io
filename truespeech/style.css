@@ -1029,6 +1029,179 @@ pre.code-hl .cmt { color: #999; font-style: italic; }
 }
 
 /* ==========================================================================
+   tutorial.html — language introduction + tutorial
+   ==========================================================================
+   Reuses the notebook cell chrome (.nb-cell / .nb-cell-input /
+   .nb-cell-output / .data-table) for both frozen and interactive cells.
+   The tut-* rules add the section/concept prose rhythm, the canned-input
+   menu, and the editable input + controls for interactive cells. */
+
+.tutorial-mount {
+  margin: 0 0 16px;
+}
+
+/* Section + concept rhythm. Sections are the two top-level parts
+   (Core concepts / Language features); concepts are the labeled
+   sub-blocks within. */
+.tut-section {
+  margin: 40px 0 4px;
+}
+.tut-section:first-child {
+  margin-top: 8px;
+}
+.tut-section h2 {
+  font-size: 24px;
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #d2ccba;
+}
+.tut-section > p {
+  max-width: 760px;
+  color: #3a3a3a;
+}
+
+.tut-concept {
+  margin: 28px 0 12px;
+  max-width: 760px;
+}
+.tut-concept h3 {
+  font-size: 17px;
+  margin: 0 0 6px;
+  color: #1a1a1a;
+}
+.tut-concept p {
+  margin: 0;
+  color: #3a3a3a;
+}
+
+.tut-closing {
+  margin-top: 48px;
+}
+
+/* Cells: frozen and interactive both reuse .nb-cell. Give them the
+   vertical spacing the notebook used to provide via its flex gap. */
+.nb-cell.tut-frozen,
+.nb-cell.tut-cell {
+  margin: 0 0 16px;
+}
+
+/* ----- Canned-input menu (interactive cells) ----- */
+.tut-canned {
+  padding: 12px 14px;
+  background: #f3eee2;
+  border-bottom: 1px solid #d2ccba;
+}
+.tut-canned-label {
+  margin: 0 0 8px;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #998f73;
+}
+.tut-canned-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "code  buttons"
+    "desc  buttons";
+  gap: 2px 12px;
+  align-items: start;
+  padding: 8px 0;
+}
+.tut-canned-item + .tut-canned-item {
+  border-top: 1px solid #e2dcca;
+}
+.tut-canned-code {
+  grid-area: code;
+  margin: 0;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12.5px;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+.tut-canned-desc {
+  grid-area: desc;
+  margin: 0;
+  font-size: 13px;
+  color: #6a6353;
+}
+.tut-canned-btns {
+  grid-area: buttons;
+  display: flex;
+  gap: 6px;
+  align-self: center;
+}
+
+/* ----- Editable input band (interactive cells) ----- */
+.tut-cell-editor {
+  display: block;
+  width: 100%;
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  border: 1px solid #cdc6b2;
+  border-radius: 4px;
+  padding: 7px 9px;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  min-height: 30px;
+}
+.tut-cell-editor:focus {
+  border-color: #b6ad93;
+}
+.tut-cell-controls {
+  display: flex;
+  gap: 8px;
+}
+
+/* ----- Buttons ----- */
+.tut-btn {
+  font-family: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.tut-btn-run {
+  color: #1f4d1f;
+  background: #e8f5e8;
+  border: 1px solid #b8d8b8;
+}
+.tut-btn-run:hover {
+  background: #d8eed8;
+}
+.tut-btn-copy,
+.tut-btn-reset {
+  color: #5a5444;
+  background: #efeadd;
+  border: 1px solid #cdc6b2;
+}
+.tut-btn-copy:hover,
+.tut-btn-reset:hover {
+  background: #e4dcc8;
+}
+
+@media (max-width: 640px) {
+  .tut-canned-item {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "code"
+      "desc"
+      "buttons";
+  }
+  .tut-canned-btns {
+    align-self: start;
+  }
+}
+
+/* ==========================================================================
    reference.html — language reference page
    ==========================================================================
    All selectors are scoped under .ref-page (or have a .ref-/ref- prefix) so
